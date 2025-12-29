@@ -80,6 +80,7 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog }) => {
           const hasError = videoError[ex.id];
           const isLoading = videoLoading[ex.id];
           const estBurn = Math.round(ex.kcalPerUnit * (ex.unit === 'second' ? 40 : 1) * ex.sets);
+          const isYouTube = ex.videoUrl?.includes('youtube.com') || ex.videoUrl?.includes('youtu.be');
           
           return (
             <div
@@ -119,24 +120,34 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog }) => {
                   {/* Video Cinema Container */}
                   <div className="relative rounded-[24px] overflow-hidden aspect-[16/10] bg-slate-900 shadow-2xl border border-slate-800">
                     {ex.videoUrl && !hasError ? (
-                      <>
-                        <video 
-                          ref={(el) => { videoRefs.current[ex.id] = el; }}
-                          key={ex.videoUrl}
-                          src={ex.videoUrl}
-                          autoPlay loop muted playsInline preload="auto"
-                          onLoadStart={() => setVideoLoading(prev => ({...prev, [ex.id]: true}))}
-                          onCanPlay={() => setVideoLoading(prev => ({...prev, [ex.id]: false}))}
-                          onError={() => setVideoError(prev => ({...prev, [ex.id]: true}))}
-                          className={`w-full h-full object-cover transition-opacity duration-1000 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                      isYouTube ? (
+                        <iframe 
+                          src={`${ex.videoUrl}?autoplay=1&mute=1&loop=1&playlist=${ex.videoUrl.split('/').pop()?.split('?')[0]}&controls=0&modestbranding=1`}
+                          title={ex.name}
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
                         />
-                        {isLoading && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center text-blue-400">
-                            <Loader2 className="animate-spin mb-3" size={32} />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Syncing Feed...</span>
-                          </div>
-                        )}
-                      </>
+                      ) : (
+                        <>
+                          <video 
+                            ref={(el) => { videoRefs.current[ex.id] = el; }}
+                            key={ex.videoUrl}
+                            src={ex.videoUrl}
+                            autoPlay loop muted playsInline preload="auto"
+                            onLoadStart={() => setVideoLoading(prev => ({...prev, [ex.id]: true}))}
+                            onCanPlay={() => setVideoLoading(prev => ({...prev, [ex.id]: false}))}
+                            onError={() => setVideoError(prev => ({...prev, [ex.id]: true}))}
+                            className={`w-full h-full object-cover transition-opacity duration-1000 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                          />
+                          {isLoading && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-blue-400">
+                              <Loader2 className="animate-spin mb-3" size={32} />
+                              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Syncing Feed...</span>
+                            </div>
+                          )}
+                        </>
+                      )
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-slate-50/50">
                         <AlertCircle size={32} className="text-slate-300 mb-3 opacity-20" />

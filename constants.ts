@@ -138,7 +138,7 @@ const FULL_BODY_EXERCISES: Exercise[] = [
 
 const SATURDAY_EXERCISES: Exercise[] = [
   ...WARM_UP,
-  { id: 'sa1', name: 'Incline push-ups', equipment: 'Bench', sets: 3, reps: '15', kcalPerUnit: 5, unit: 'set', videoUrl: '/attach/incline_pushups.mp4', formTips: ['Keep body straight', 'Lower chest to bench', 'Full elbow extension'] },
+  { id: 'sa1', name: 'Incline push-ups', equipment: 'Bench', sets: 3, reps: '15', kcalPerUnit: 5, unit: 'set', videoUrl: 'https://www.youtube.com/embed/1YCLMwI1LK4', formTips: ['Keep body straight', 'Lower chest to bench', 'Full elbow extension'] },
   { id: 'sa2', name: 'Dumbbell chest fly', equipment: '7 kg DBs', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/chest_fly.mp4', formTips: ['Slight bend in elbows', 'Hug a tree motion', 'Stretch but don\'t overextend'] },
   { id: 'sa3', name: 'DB Romanian deadlift', equipment: '10–12 kg DBs', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: '/attach/rdl.mp4', formTips: ['Feel stretch in hamstrings', 'Keep DBs on your legs', 'Back perfectly flat'] },
   { id: 'sa4', name: 'Russian twists', equipment: '5 kg DB', sets: 3, reps: '20', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/russian_twists.mp4', formTips: ['Lean back slightly', 'Rotate from the torso', 'Keep feet off floor if possible'] },
