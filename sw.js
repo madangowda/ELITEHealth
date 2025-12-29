@@ -36,80 +36,78 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 3. Fetch Interceptor: The core of host-independence
+// 3. Fetch Interceptor
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // CRITICAL: Never cache Gemini AI calls - they need live internet
-  if (url.hostname.includes('generativelanguage.googleapis.com')) {
+  // Gemini AI bypass
+  if (url.hostname.includes('generativelanguage.googleapis.com')) return;
+
+  // Handle Video Requests (Standard & Range)
+  if (url.pathname.includes('/attach/')) {
+    event.respondWith(handleVideoFetch(event.request));
     return;
   }
 
-  // Handle Range Requests for Videos
-  if (event.request.headers.get('range')) {
-    event.respondWith(handleRangeRequest(event.request));
-    return;
-  }
-
+  // Standard Asset Strategy (Stale-While-Revalidate)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Return from cache if we have it
-      if (cachedResponse) {
-        if (navigator.onLine) {
-          fetch(event.request).then((networkResponse) => {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-          }).catch(() => {});
-        }
-        return cachedResponse;
-      }
-
-      // If not in cache, fetch and cache
-      return fetch(event.request).then((networkResponse) => {
-        // Cache standard assets and esm modules
-        if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || url.hostname.includes('esm.sh') || url.pathname.includes('/attach/'))) {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || url.hostname.includes('esm.sh'))) {
           const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         }
         return networkResponse;
       }).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('index.html');
-        }
+        if (event.request.mode === 'navigate') return caches.match('index.html');
       });
+
+      return cachedResponse || fetchPromise;
     })
   );
 });
 
-// Helper for Video Range Requests
-async function handleRangeRequest(request) {
+async function handleVideoFetch(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cachedResponse = await cache.match(request);
-  
-  if (cachedResponse) {
-    const rangeHeader = request.headers.get('range');
-    const fullBuffer = await cachedResponse.arrayBuffer();
-    const rangeMatch = /bytes=(\d+)-(\d+)?/.exec(rangeHeader);
-    
-    if (rangeMatch) {
-      const start = parseInt(rangeMatch[1], 10);
-      const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fullBuffer.byteLength - 1;
-      const chunk = fullBuffer.slice(start, end + 1);
-      
-      return new Response(chunk, {
-        status: 206,
-        statusText: 'Partial Content',
-        headers: new Headers({
-          'Content-Type': cachedResponse.headers.get('Content-Type'),
-          'Content-Range': `bytes ${start}-${end}/${fullBuffer.byteLength}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': chunk.byteLength,
-        }),
-      });
+  const cachedResponse = await cache.match(request.url);
+
+  // If not cached, fetch the ENTIRE file as a standard 200 OK (bypass range headers)
+  if (!cachedResponse) {
+    try {
+      const response = await fetch(request.url); // Standard fetch without range
+      if (response.status === 200) {
+        await cache.put(request.url, response.clone());
+        return serveRange(request, response);
+      }
+      return response;
+    } catch (e) {
+      return new Response('Offline: Video not cached', { status: 503 });
     }
   }
 
-  // Fallback to network if not in cache or range fails
-  return fetch(request);
+  return serveRange(request, cachedResponse);
+}
+
+async function serveRange(request, fullResponse) {
+  const rangeHeader = request.headers.get('range');
+  if (!rangeHeader) return fullResponse;
+
+  const fullBuffer = await fullResponse.arrayBuffer();
+  const rangeMatch = /bytes=(\d+)-(\d+)?/.exec(rangeHeader);
+  if (!rangeMatch) return fullResponse;
+
+  const start = parseInt(rangeMatch[1], 10);
+  const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fullBuffer.byteLength - 1;
+  const chunk = fullBuffer.slice(start, end + 1);
+
+  return new Response(chunk, {
+    status: 206,
+    statusText: 'Partial Content',
+    headers: new Headers({
+      'Content-Type': fullResponse.headers.get('Content-Type') || 'video/mp4',
+      'Content-Range': `bytes ${start}-${end}/${fullBuffer.byteLength}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunk.byteLength,
+    }),
+  });
 }
