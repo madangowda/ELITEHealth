@@ -1,4 +1,5 @@
-import { DailyLog, WeightEntry, Macros, AppNotification, UserProfile } from './types';
+
+import { DailyLog, WeightEntry, Macros, AppNotification, UserProfile, MealEntry } from './types';
 import { MEAL_PLAN, WORKOUT_PLAN } from './constants';
 
 export const formatDate = (date: Date) => date.toISOString().split('T')[0];
@@ -17,25 +18,27 @@ export const calculateMacros = (log: DailyLog): Macros => {
   const totals: Macros = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
   
   MEAL_PLAN.forEach(cat => {
-    const selectedId = log.meals[cat.id as keyof DailyLog['meals']] as string;
-    if (selectedId) {
-      const option = cat.options.find(o => o.id === selectedId);
+    const entry = log.meals[cat.id as keyof DailyLog['meals']] as MealEntry;
+    if (entry && entry.id) {
+      const option = cat.options.find(o => o.id === entry.id);
       if (option) {
-        totals.kcal += option.kcal;
-        totals.protein += option.protein;
-        totals.carbs += option.carbs;
-        totals.fat += option.fat;
-        totals.fiber += option.fiber;
+        const qty = entry.qty || 1;
+        totals.kcal += option.kcal * qty;
+        totals.protein += option.protein * qty;
+        totals.carbs += option.carbs * qty;
+        totals.fat += option.fat * qty;
+        totals.fiber += option.fiber * qty;
       }
     }
   });
 
   log.meals.custom?.forEach(entry => {
-    totals.kcal += entry.macros.kcal;
-    totals.protein += entry.macros.protein;
-    totals.carbs += entry.macros.carbs;
-    totals.fat += entry.macros.fat;
-    totals.fiber += entry.macros.fiber;
+    const qty = entry.qty || 1;
+    totals.kcal += entry.macros.kcal * qty;
+    totals.protein += entry.macros.protein * qty;
+    totals.carbs += entry.macros.carbs * qty;
+    totals.fat += entry.macros.fat * qty;
+    totals.fiber += entry.macros.fiber * qty;
   });
 
   return totals;
@@ -87,10 +90,9 @@ export const calculateDailyScore = (log: DailyLog, macros: Macros, tdee: number)
   const mealKeys: (keyof DailyLog['meals'])[] = ['breakfast', 'midSnack', 'lunch', 'eveningSnack', 'dinner'];
   const mealsCount = mealKeys.filter(k => !!log.meals[k]).length;
   
-  // Specific range: 1850–1950 kcal
   if (mealsCount === 5) {
     if (macros.kcal >= 1850 && macros.kcal <= 1950) score += 4;
-    else if (macros.kcal < 1850) score += 1; // Undereating is better than overeating but not perfect
+    else if (macros.kcal < 1850) score += 1;
     else if (macros.kcal > 1950 && macros.kcal <= 2100) score += 1;
   }
 
@@ -123,7 +125,7 @@ export const generateSmartNotifications = (log: DailyLog, macros: Macros, tdee: 
     notifications.push({
       id: 'weight-rem',
       title: 'Morning Weigh-in',
-      body: 'Track your morning weight to maintain metabolic accuracy.',
+      body: 'Track your morning weight for metabolic accuracy.',
       type: 'reminder',
       timestamp: now,
       read: false
@@ -134,7 +136,7 @@ export const generateSmartNotifications = (log: DailyLog, macros: Macros, tdee: 
     notifications.push({
       id: 'cal-excess',
       title: 'Goal Exceeded',
-      body: `Intake is above your 1950 limit. Fat loss has slowed down.`,
+      body: `Intake is above your 1950 limit. Fat loss slowed.`,
       type: 'critical',
       timestamp: now,
       read: false

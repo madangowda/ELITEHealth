@@ -27,6 +27,17 @@ export interface MealCategory {
   options: MealOption[];
 }
 
+export interface MealEntry {
+  id: string;
+  qty: number;
+}
+
+export interface CustomMealEntry {
+  name: string;
+  macros: Macros;
+  qty: number;
+}
+
 export interface Exercise {
   id: string;
   name: string;
@@ -50,12 +61,12 @@ export interface DailyLog {
   date: string;
   weight?: number;
   meals: {
-    breakfast?: string;
-    midSnack?: string;
-    lunch?: string;
-    eveningSnack?: string;
-    dinner?: string;
-    custom?: { name: string; macros: Macros }[];
+    breakfast?: MealEntry;
+    midSnack?: MealEntry;
+    lunch?: MealEntry;
+    eveningSnack?: MealEntry;
+    dinner?: MealEntry;
+    custom?: CustomMealEntry[];
   };
   completedExercises: string[];
   walkingMinutes: number;

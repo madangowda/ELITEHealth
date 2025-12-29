@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { DailyLog, WeightEntry, UserProfile } from '../types';
+import { DailyLog, WeightEntry, UserProfile, MealEntry } from '../types';
 import { getPastDays, calculateMacros, calculateDailyScore, calculateTDEE } from '../utils';
 import { WORKOUT_PLAN, MEAL_PLAN } from '../constants';
 import DaySummary from './DaySummary';
@@ -111,7 +111,9 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
 
           const eatenFoodNames: string[] = [];
           MEAL_PLAN.forEach(cat => {
-            const selectedId = log.meals[cat.id as keyof DailyLog['meals']] as string;
+            // Fix: Correctly access the meal entry ID from the log.meals object instead of casting to string
+            const entry = log.meals[cat.id as keyof DailyLog['meals']] as MealEntry | undefined;
+            const selectedId = entry?.id;
             const option = cat.options.find(o => o.id === selectedId);
             if (option) eatenFoodNames.push(option.name);
           });

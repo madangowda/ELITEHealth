@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { DailyLog, Macros } from '../types';
+import { DailyLog, Macros, MealEntry, CustomMealEntry } from '../types';
 import { MEAL_PLAN, DAILY_TARGETS } from '../constants';
-import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Utensils, Hash } from 'lucide-react';
+import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Utensils, Hash, Minus } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 declare var process: { env: { API_KEY: string } };
@@ -85,7 +85,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Provide estimated nutritional data for a standard single serving of: "${customName}". Return JSON.`,
+        contents: `Provide estimated nutritional data for a single standard serving of: "${customName}". Return JSON.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -103,7 +103,6 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       });
 
       const data = JSON.parse(response.text || '{}');
-      
       setCustomKcal(Math.round(data.kcal || 0).toString());
       setCustomProtein(Math.round(data.protein || 0).toString());
       setCustomCarbs(Math.round(data.carbs || 0).toString());
@@ -112,7 +111,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       
     } catch (err: any) {
       console.error("AI Analysis failed:", err);
-      setError("AI analysis unavailable. Please enter parameters manually.");
+      setError("AI analysis unavailable. Manual entry active.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -123,24 +122,27 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     const qty = parseFloat(customQty) || 1.0;
     
     if (!customName || isNaN(kcal)) {
-      setError("Food name and calorie values are required.");
+      setError("Food name and calories are required.");
       return;
     }
 
     const currentCustom = log.meals.custom || [];
-    // Final macros = base values * quantity
-    const entryMacros: Macros = { 
-      kcal: kcal * qty, 
-      protein: (parseFloat(customProtein) || 0) * qty, 
-      carbs: (parseFloat(customCarbs) || 0) * qty, 
-      fat: (parseFloat(customFat) || 0) * qty, 
-      fiber: (parseFloat(customFiber) || 0) * qty 
+    const entry: CustomMealEntry = {
+      name: customName,
+      qty: qty,
+      macros: { 
+        kcal: kcal, 
+        protein: parseFloat(customProtein) || 0, 
+        carbs: parseFloat(customCarbs) || 0, 
+        fat: parseFloat(customFat) || 0, 
+        fiber: parseFloat(customFiber) || 0 
+      }
     };
 
     updateLog({ 
       meals: { 
         ...log.meals, 
-        custom: [...currentCustom, { name: `${customName} (x${qty})`, macros: entryMacros }] 
+        custom: [...currentCustom, entry] 
       } 
     });
 
@@ -154,26 +156,45 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     updateLog({ meals: { ...log.meals, custom: currentCustom.filter((_, i) => i !== index) } });
   };
 
-  const handleSelect = (category: string, optionId: string) => {
-    updateLog({ meals: { ...log.meals, [category]: optionId } });
-    setExpandedCat(null);
+  const handleSelectMeal = (category: string, optionId: string) => {
+    const currentEntry = log.meals[category as keyof DailyLog['meals']] as MealEntry;
+    const newQty = (currentEntry?.id === optionId) ? currentEntry.qty : 1.0;
+    
+    updateLog({ 
+      meals: { 
+        ...log.meals, 
+        [category]: { id: optionId, qty: newQty } 
+      } 
+    });
+  };
+
+  const updateMealQty = (category: string, newQty: number) => {
+    const currentEntry = log.meals[category as keyof DailyLog['meals']] as MealEntry;
+    if (!currentEntry) return;
+
+    updateLog({
+      meals: {
+        ...log.meals,
+        [category]: { ...currentEntry, qty: Math.max(0.1, newQty) }
+      }
+    });
   };
 
   return (
     <div className="p-6 space-y-8 pb-32 animate-in fade-in duration-500">
-      {/* Header HUD */}
+      {/* HUD */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Metabolic Feed</h2>
-          <h1 className="text-3xl font-black text-white tracking-tight leading-none">Fuel Log</h1>
+          <h2 className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Fuel Status</h2>
+          <h1 className="text-3xl font-black text-white tracking-tight leading-none">Metabolic Log</h1>
         </div>
         <div className="bg-blue-600 text-white rounded-2xl px-5 py-3 flex flex-col items-end shadow-lg shadow-blue-500/20 border border-blue-400/20">
-          <span className="text-[8px] font-black text-blue-100 uppercase tracking-widest opacity-60">Daily Total</span>
+          <span className="text-[8px] font-black text-blue-100 uppercase tracking-widest opacity-60">Total Energy</span>
           <span className="text-xl font-black">{Math.round(macros.kcal)} <span className="text-xs font-medium opacity-40">kcal</span></span>
         </div>
       </div>
 
-      {/* Target Progress Card */}
+      {/* Progress */}
       <div className="stealth-card rounded-[32px] p-6 space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <MacroGoal label="Protein" val={macros.protein} target={DAILY_TARGETS.protein} unit="g" color="text-blue-400" bg="bg-blue-500/5" />
@@ -183,57 +204,78 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         </div>
       </div>
 
-      {/* Meal Categories */}
+      {/* Categories */}
       <div className="space-y-4">
-        {MEAL_PLAN.map((cat) => (
-          <div key={cat.id} className="bg-white/5 rounded-[32px] overflow-hidden border border-white/5">
-            <button 
-              onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}
-              className="w-full p-6 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center">
-                  <Utensils size={18} />
+        {MEAL_PLAN.map((cat) => {
+          const entry = log.meals[cat.id as keyof DailyLog['meals']] as MealEntry;
+          const selectedOption = entry ? cat.options.find(o => o.id === entry.id) : null;
+          
+          return (
+            <div key={cat.id} className="bg-white/5 rounded-[32px] overflow-hidden border border-white/5">
+              <button 
+                onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}
+                className="w-full p-6 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center">
+                    <Utensils size={18} />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-sm font-black text-white">{cat.label}</h4>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                      {selectedOption ? `${selectedOption.name} (x${entry.qty})` : 'Nothing Logged'}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h4 className="text-sm font-black text-white">{cat.label}</h4>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
-                    {log.meals[cat.id as keyof DailyLog['meals']] ? cat.options.find(o => o.id === log.meals[cat.id as keyof DailyLog['meals']])?.name : 'Nothing Logged'}
-                  </p>
-                </div>
-              </div>
-              <ChevronDown size={20} className={`text-slate-500 transition-transform ${expandedCat === cat.id ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {expandedCat === cat.id && (
-              <div className="px-4 pb-6 space-y-2 animate-in slide-in-from-top-2 duration-300">
-                {cat.options.map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => handleSelect(cat.id, opt.id)}
-                    className={`w-full p-4 rounded-2xl flex items-center justify-between text-left transition-all ${
-                      log.meals[cat.id as keyof DailyLog['meals']] === opt.id 
-                      ? 'bg-blue-600 text-white shadow-lg' 
-                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-black text-xs">{opt.name}</div>
-                      <div className="text-[10px] opacity-60 mt-0.5">{opt.kcal} kcal • {opt.quantity}</div>
+                <ChevronDown size={20} className={`text-slate-500 transition-transform ${expandedCat === cat.id ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {expandedCat === cat.id && (
+                <div className="px-4 pb-6 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                  {/* Quantity Control for Selected */}
+                  {selectedOption && (
+                    <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-4 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Multiplier</span>
+                        <span className="text-xs font-black text-white">{entry.qty}x Portion</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateMealQty(cat.id, entry.qty - 0.25)} className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white"><Minus size={16}/></button>
+                        <button onClick={() => updateMealQty(cat.id, entry.qty + 0.25)} className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white"><Plus size={16}/></button>
+                      </div>
                     </div>
-                    {log.meals[cat.id as keyof DailyLog['meals']] === opt.id && <CheckCircle2 size={16} />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+                  )}
+
+                  <div className="space-y-2">
+                    {cat.options.map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => handleSelectMeal(cat.id, opt.id)}
+                        className={`w-full p-4 rounded-2xl flex items-center justify-between text-left transition-all ${
+                          entry?.id === opt.id 
+                          ? 'bg-blue-600 text-white shadow-lg' 
+                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-black text-xs">{opt.name}</div>
+                          <div className="text-[10px] opacity-60 mt-0.5">{opt.kcal} kcal / serving</div>
+                        </div>
+                        {entry?.id === opt.id && <CheckCircle2 size={16} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Custom Entries List */}
+      {/* Custom */}
       <div className="space-y-4">
         <div className="flex justify-between items-center px-2">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Fuel</h3>
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Entries</h3>
           <button 
             onClick={() => setShowCustom(true)}
             className="flex items-center gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest"
@@ -249,11 +291,8 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 <Sparkles size={18} />
               </div>
               <div>
-                <h4 className="text-xs font-black text-white">{entry.name}</h4>
-                <div className="flex gap-2 mt-1">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{Math.round(entry.macros.kcal)} kcal</p>
-                  <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">P: {Math.round(entry.macros.protein)}g</p>
-                </div>
+                <h4 className="text-xs font-black text-white">{entry.name} <span className="text-[10px] opacity-40 ml-1">x{entry.qty}</span></h4>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{Math.round(entry.macros.kcal * entry.qty)} kcal</p>
               </div>
             </div>
             <button onClick={() => removeCustomEntry(idx)} className="text-slate-600 hover:text-rose-500 transition-colors">
@@ -263,14 +302,14 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         ))}
       </div>
 
-      {/* Custom Entry Modal - Manual + AI Scan */}
+      {/* Modal */}
       {showCustom && (
         <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#0f172a] rounded-[40px] border border-white/10 shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8 duration-500 max-h-[90vh] overflow-y-auto no-scrollbar">
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-2xl font-black text-white tracking-tight">Custom Entry</h3>
-                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Log Parameters Manually or via AI</p>
+                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Manual Macros or AI Scan</p>
               </div>
               <button onClick={() => { setShowCustom(false); setError(null); }} className="text-slate-500 hover:text-white">
                 <Trash2 size={24} />
@@ -285,14 +324,13 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
             )}
 
             <div className="space-y-4">
-              {/* Food Name & AI Scan */}
               <div className="space-y-1.5">
-                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">Food Item Name</label>
+                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">Description</label>
                 <div className="relative">
                   <input 
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="e.g. Avocado Toast"
+                    placeholder="e.g. 2 Scrambled Eggs"
                     className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-white font-bold text-sm outline-none pr-12"
                   />
                   <button 
@@ -305,9 +343,8 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 </div>
               </div>
 
-              {/* Quantity Multiplier */}
               <div className="space-y-1.5">
-                <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest pl-1">Quantity Multiplier (Multiple of real number)</label>
+                <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest pl-1">Quantity (Multiplier)</label>
                 <div className="relative">
                   <div className="absolute left-4 top-3 text-slate-500"><Hash size={14} /></div>
                   <input 
@@ -321,9 +358,8 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 </div>
               </div>
 
-              {/* Macro Parameters */}
               <div className="grid grid-cols-2 gap-4">
-                <InputBox label="Base Calories" val={customKcal} setVal={setCustomKcal} colorClass="border-blue-500/20" />
+                <InputBox label="Base Kcal" val={customKcal} setVal={setCustomKcal} colorClass="border-blue-500/20" />
                 <InputBox label="Protein (g)" val={customProtein} setVal={setCustomProtein} />
                 <InputBox label="Carbs (g)" val={customCarbs} setVal={setCustomCarbs} />
                 <InputBox label="Fat (g)" val={customFat} setVal={setCustomFat} />
@@ -333,7 +369,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
 
             <div className="pt-2 border-t border-white/5">
               <div className="flex justify-between items-center mb-4 px-1">
-                <span className="text-[9px] font-black text-slate-500 uppercase">Calculated Total</span>
+                <span className="text-[9px] font-black text-slate-500 uppercase">Calculated Injection</span>
                 <span className="text-lg font-black text-emerald-400">
                   {Math.round((parseFloat(customKcal) || 0) * (parseFloat(customQty) || 1.0))} kcal
                 </span>
@@ -342,7 +378,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 onClick={addCustomEntry}
                 className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                <Save size={18} /> Confirm Injection
+                <Save size={18} /> Confirm Entry
               </button>
             </div>
           </div>
