@@ -1,0 +1,7 @@
+{
+  "name": "Elite Health Coach",
+  "description": "A professional-grade personal health tracker for fat loss, muscle preservation, and disciplined diet/exercise tracking based on a structured dietitian-approved plan.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
