@@ -45,11 +45,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Handle Range Requests for Videos
+  if (event.request.headers.get('range')) {
+    event.respondWith(handleRangeRequest(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Return from cache if we have it (Zero latency, works if Vercel is down)
+      // Return from cache if we have it
       if (cachedResponse) {
-        // Optional: Still fetch in background to update cache for next time (Stale-While-Revalidate)
         if (navigator.onLine) {
           fetch(event.request).then((networkResponse) => {
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
@@ -58,20 +63,17 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
 
-      // If not in cache, fetch and cache (Capture external libraries from esm.sh)
+      // If not in cache, fetch and cache
       return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && !url.hostname.includes('esm.sh')) {
-          return networkResponse;
+        // Cache standard assets and esm modules
+        if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || url.hostname.includes('esm.sh') || url.pathname.includes('/attach/'))) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
         return networkResponse;
       }).catch(() => {
-        // Fallback to index.html for navigation requests (SPA routing support)
         if (event.request.mode === 'navigate') {
           return caches.match('index.html');
         }
@@ -79,3 +81,35 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Helper for Video Range Requests
+async function handleRangeRequest(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+  
+  if (cachedResponse) {
+    const rangeHeader = request.headers.get('range');
+    const fullBuffer = await cachedResponse.arrayBuffer();
+    const rangeMatch = /bytes=(\d+)-(\d+)?/.exec(rangeHeader);
+    
+    if (rangeMatch) {
+      const start = parseInt(rangeMatch[1], 10);
+      const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fullBuffer.byteLength - 1;
+      const chunk = fullBuffer.slice(start, end + 1);
+      
+      return new Response(chunk, {
+        status: 206,
+        statusText: 'Partial Content',
+        headers: new Headers({
+          'Content-Type': cachedResponse.headers.get('Content-Type'),
+          'Content-Range': `bytes ${start}-${end}/${fullBuffer.byteLength}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunk.byteLength,
+        }),
+      });
+    }
+  }
+
+  // Fallback to network if not in cache or range fails
+  return fetch(request);
+}
