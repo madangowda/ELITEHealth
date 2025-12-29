@@ -1,15 +1,14 @@
 
 const CACHE_NAME = 'elite-coach-v3-permanent';
 
-// We pre-cache the core logic and the CDN dependencies
 const PRE_CACHE_URLS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/index.tsx',
-  '/types.ts',
-  '/utils.ts',
-  '/constants.ts',
+  './',
+  'index.html',
+  'manifest.json',
+  'index.tsx',
+  'types.ts',
+  'utils.ts',
+  'constants.ts',
   'https://cdn.tailwindcss.com',
   'https://esm.sh/react@^19.2.3',
   'https://esm.sh/react-dom@^19.2.3/',
@@ -21,7 +20,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('Building Offline Vault...');
-      return cache.addAll(PRE_CACHE_URLS);
+      return cache.addAll(PRE_CACHE_URLS).catch(err => {
+        console.warn('One or more URLs failed to cache:', err);
+      });
     })
   );
   self.skipWaiting();
@@ -39,7 +40,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Strategy: Cache First, then Network
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -47,7 +47,6 @@ self.addEventListener('fetch', (event) => {
       }
 
       return fetch(event.request).then((networkResponse) => {
-        // Don't cache if not a success or if it's the AI API call
         if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && !event.request.url.includes('esm.sh')) {
           return networkResponse;
         }
@@ -59,9 +58,8 @@ self.addEventListener('fetch', (event) => {
 
         return networkResponse;
       }).catch(() => {
-        // If everything fails (no net + no cache), show the index as fallback
         if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match('index.html');
         }
       });
     })

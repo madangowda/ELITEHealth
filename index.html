@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="manifest.json">
   <title>Elite Health Coach</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -60,12 +60,11 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+  <script type="module" src="index.tsx"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        // Use relative path to avoid origin mismatch errors
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
+        navigator.serviceWorker.register('sw.js', { scope: './' })
           .then(reg => console.log('Elite Offline Engine Active'))
           .catch(err => console.warn('Offline Engine initialization bypassed:', err.message));
       });
