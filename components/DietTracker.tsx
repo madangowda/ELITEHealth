@@ -42,11 +42,11 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
 
   const analyzeWithAI = async () => {
     if (!isOnline) {
-      setError("Analysis requires an active uplink.");
+      setError("Uplink unavailable. Switching to manual.");
       return;
     }
     if (!customName || customName.length < 2) {
-      setError("Please specify a valid food item.");
+      setError("Please name the food item first.");
       return;
     }
 
@@ -55,11 +55,15 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     setError(null);
 
     try {
-      // Create instance right before call as per guidelines
+      // Ensure key exists before making the request
+      if (!process.env.API_KEY) {
+        throw new Error("API_KEY not configured in environment variables.");
+      }
+
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Precisely estimate nutritional data for a standard serving of: "${customName}". Use your thinking process to determine realistic weights. Return only JSON.`,
+        contents: `Nutritional data for: "${customName}". Return JSON with keys: kcal, protein, carbs, fat, fiber, grams. Use standard weights.`,
         config: {
           thinkingConfig: { thinkingBudget: 1024 },
           responseMimeType: "application/json",
@@ -79,14 +83,17 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       });
 
       const text = response.text;
-      if (!text) throw new Error("Empty AI Response");
+      if (!text) throw new Error("AI returned empty stream.");
       
-      // Strict JSON cleaning to handle different environment responses
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const cleanJson = jsonMatch ? jsonMatch[0] : text.replace(/```json|```/g, '').trim();
+      // DEEP CLEANING: Finds the first { and last } to isolate JSON from any markdown noise
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace === -1 || lastBrace === -1) throw new Error("Malformed JSON stream.");
+      
+      const cleanJson = text.substring(firstBrace, lastBrace + 1);
       const data = JSON.parse(cleanJson);
       
-      // Auto-populate all fields
+      // Auto-populate all fields with high-visibility values
       setCustomKcal(Math.round(data.kcal).toString());
       setCustomProtein(Math.round(data.protein).toString());
       setCustomCarbs(Math.round(data.carbs).toString());
@@ -101,9 +108,9 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         fiber: Math.round(data.fiber),
         grams: data.grams
       });
-    } catch (err) {
-      console.error("Metabolic scan failure:", err);
-      setError("AI analysis failed. Please enter data manually.");
+    } catch (err: any) {
+      console.error("Metabolic Analysis Logic Failure:", err);
+      setError("AI Engine Busy. Please fill details manually.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -111,23 +118,18 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
 
   const addCustomEntry = () => {
     const kcal = parseInt(customKcal);
-    const prot = parseInt(customProtein) || 0;
-    const carb = parseInt(customCarbs) || 0;
-    const fat = parseInt(customFat) || 0;
-    const fiber = parseInt(customFiber) || 0;
-
     if (!customName || isNaN(kcal)) {
-      setError("Name and Calories are mandatory.");
+      setError("Name and Calories are required.");
       return;
     }
 
     const currentCustom = log.meals.custom || [];
     const entryMacros: Macros = { 
       kcal: kcal, 
-      protein: prot, 
-      carbs: carb, 
-      fat: fat, 
-      fiber: fiber, 
+      protein: parseInt(customProtein) || 0, 
+      carbs: parseInt(customCarbs) || 0, 
+      fat: parseInt(customFat) || 0, 
+      fiber: parseInt(customFiber) || 0, 
       grams: aiResult?.grams || 0 
     };
 
@@ -138,16 +140,10 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       } 
     });
 
-    // Reset All
-    setCustomName('');
-    setCustomKcal('');
-    setCustomProtein('');
-    setCustomCarbs('');
-    setCustomFat('');
-    setCustomFiber('');
-    setAiResult(null);
-    setShowCustom(false);
-    setError(null);
+    // Reset All UI States
+    setCustomName(''); setCustomKcal(''); setCustomProtein(''); 
+    setCustomCarbs(''); setCustomFat(''); setCustomFiber('');
+    setAiResult(null); setShowCustom(false); setError(null);
   };
 
   const removeCustomEntry = (index: number) => {
@@ -274,8 +270,8 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
              </div>
 
              {error && (
-               <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-center gap-3 text-rose-400 text-[10px] font-black uppercase tracking-wider">
-                  <AlertCircle size={14} />
+               <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center gap-3 text-rose-300 text-[10px] font-bold uppercase tracking-wider">
+                  <AlertCircle size={16} className="text-rose-500" />
                   {error}
                </div>
              )}
@@ -284,7 +280,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 <div className="flex gap-2">
                     <input 
                     placeholder="Identify Food Item..." 
-                    className="flex-1 bg-slate-800/50 border border-white/5 rounded-2xl px-6 py-5 font-black text-white focus:border-blue-500/50 transition-all placeholder:text-slate-600" 
+                    className="flex-1 bg-slate-900 border border-white/10 rounded-2xl px-6 py-5 font-black text-white focus:border-blue-500 transition-all placeholder:text-slate-600" 
                     value={customName} 
                     onChange={e => { setCustomName(e.target.value); setError(null); }} 
                     />
@@ -299,18 +295,18 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
-                    <ManualInput label="Calories" value={customKcal} setter={setCustomKcal} unit="kcal" />
-                    <ManualInput label="Protein" value={customProtein} setter={setCustomProtein} unit="g" color="border-blue-500/30" />
-                    <ManualInput label="Carbs" value={customCarbs} setter={setCustomCarbs} unit="g" color="border-emerald-500/30" />
-                    <ManualInput label="Fat" value={customFat} setter={setCustomFat} unit="g" color="border-amber-500/30" />
-                    <ManualInput label="Fiber" value={customFiber} setter={setCustomFiber} unit="g" color="border-indigo-500/30" className="col-span-2" />
+                    <ManualInput label="Calories" value={customKcal} setter={setCustomKcal} unit="kcal" color="border-white/20" />
+                    <ManualInput label="Protein" value={customProtein} setter={setCustomProtein} unit="g" color="border-blue-500/40" />
+                    <ManualInput label="Carbs" value={customCarbs} setter={setCustomCarbs} unit="g" color="border-emerald-500/40" />
+                    <ManualInput label="Fat" value={customFat} setter={setCustomFat} unit="g" color="border-amber-500/40" />
+                    <ManualInput label="Fiber" value={customFiber} setter={setCustomFiber} unit="g" color="border-indigo-500/40" className="col-span-2" />
                 </div>
              </div>
 
              <div className="flex gap-3 pt-2">
                <button 
                  onClick={() => { setShowCustom(false); setAiResult(null); setError(null); }} 
-                 className="flex-1 py-5 bg-slate-800/50 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
+                 className="flex-1 py-5 bg-slate-800 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all"
                >
                  Abort
                </button>
@@ -344,7 +340,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                  </div>
                  <button 
                    onClick={() => removeCustomEntry(idx)}
-                   className="w-10 h-10 rounded-xl flex items-center justify-center text-rose-500 bg-rose-500/10 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                   className="w-10 h-10 rounded-xl flex items-center justify-center text-rose-500 bg-rose-500/10 transition-opacity"
                  >
                    <Trash2 size={16} />
                  </button>
@@ -357,16 +353,16 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   );
 };
 
-const ManualInput = ({ label, value, setter, unit, color = "border-white/5", className = "" }: any) => (
+const ManualInput = ({ label, value, setter, unit, color = "border-white/10", className = "" }: any) => (
     <div className={`relative ${className}`}>
         <input 
             placeholder={label} 
             type="number" 
-            className={`w-full bg-slate-800/50 border ${color} rounded-2xl px-4 py-4 font-black text-white focus:border-blue-500/50 transition-all placeholder:text-slate-600 text-sm`} 
+            className={`w-full bg-slate-900 border ${color} rounded-2xl px-5 py-5 font-black text-white focus:border-blue-500 transition-all placeholder:text-slate-500 text-sm`} 
             value={value} 
             onChange={e => setter(e.target.value)} 
         />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-600 uppercase">{unit}</span>
+        <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-600 uppercase tracking-widest">{unit}</span>
     </div>
 );
 
