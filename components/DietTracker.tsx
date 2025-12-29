@@ -1,12 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { DailyLog, Macros } from '../types';
-import { MEAL_PLAN, DAILY_TARGETS, TARGET_RANGES } from '../constants';
-import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Key, Info, Utensils } from 'lucide-react';
+import { MEAL_PLAN, DAILY_TARGETS } from '../constants';
+import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Utensils } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 declare var process: { env: { API_KEY: string } };
-declare var window: any;
 
 interface DietTrackerProps {
   log: DailyLog;
@@ -17,7 +16,7 @@ interface DietTrackerProps {
 const MacroGoal: React.FC<{ label: string; val: number; target: number; unit: string; color: string; bg: string }> = ({ label, val, target, unit, color, bg }) => {
   const percent = Math.min(100, (val / target) * 100);
   return (
-    <div className={`${bg} rounded-2xl p-4 flex flex-col items-center`}>
+    <div className={`${bg} rounded-2xl p-4 flex flex-col items-center border border-white/5`}>
       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</span>
       <div className={`text-base font-black ${color}`}>
         {Math.round(val)}<span className="text-[10px] opacity-40">/{Math.round(target)}{unit}</span>
@@ -45,7 +44,6 @@ const InputBox = ({ label, val, setVal, colorClass = "border-white/5" }: { label
 const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => {
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
-  const [hasKey, setHasKey] = useState<boolean>(true); // Default to true to attempt AI calls
   
   const [customName, setCustomName] = useState('');
   const [customKcal, setCustomKcal] = useState('');
@@ -56,17 +54,9 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [error, setError] = useState<{ message: string; type: 'auth' | 'network' | 'logic' } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkKeyStatus = async () => {
-      if (window.aistudio) {
-        const selected = await window.aistudio.hasSelectedApiKey();
-        setHasKey(selected || (!!process.env.API_KEY && process.env.API_KEY !== 'undefined'));
-      }
-    };
-    checkKeyStatus();
-    
     const handleStatus = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
@@ -76,26 +66,13 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     };
   }, []);
 
-  const handleConnectKey = async () => {
-    if (window.aistudio) {
-      try {
-        await window.aistudio.openSelectKey();
-        // Rule: Assume success after trigger to mitigate race conditions
-        setHasKey(true);
-        setError(null);
-      } catch (e) {
-        console.error("Key selection failed", e);
-      }
-    }
-  };
-
   const analyzeWithAI = async () => {
     if (!isOnline) {
-      setError({ message: "Network connection required for AI scanning.", type: 'network' });
+      setError("Network connection required for AI scanning.");
       return;
     }
     if (!customName || customName.length < 2) {
-      setError({ message: "Please enter a valid food description first.", type: 'logic' });
+      setError("Please enter a food description first.");
       return;
     }
 
@@ -103,23 +80,11 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     setError(null);
 
     try {
-      const apiKey = process.env.API_KEY;
-      
-      // If key is missing, prompt selection immediately
-      if (!apiKey || apiKey === "undefined") {
-        if (window.aistudio) {
-          await window.aistudio.openSelectKey();
-          setHasKey(true);
-        } else {
-          throw new Error("AUTH_KEY_MISSING");
-        }
-      }
-
-      // Initialize fresh for every call
+      // Rule: Obtain API key exclusively from process.env.API_KEY
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Analyze: "${customName}". Return JSON: {kcal, protein, carbs, fat, fiber, grams}.`,
+        contents: `Provide estimated nutritional data for: "${customName}". Return JSON only.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -129,19 +94,14 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
               protein: { type: Type.NUMBER },
               carbs: { type: Type.NUMBER },
               fat: { type: Type.NUMBER },
-              fiber: { type: Type.NUMBER },
-              grams: { type: Type.NUMBER },
+              fiber: { type: Type.NUMBER }
             },
-            required: ["kcal", "protein", "carbs", "fat", "fiber", "grams"],
+            required: ["kcal", "protein", "carbs", "fat", "fiber"],
           },
         },
       });
 
-      const text = response.text;
-      if (!text) throw new Error("EMPTY_RESPONSE");
-      
-      const match = text.match(/\{[\s\S]*\}/);
-      const data = JSON.parse(match ? match[0] : text);
+      const data = JSON.parse(response.text || '{}');
       
       setCustomKcal(Math.round(data.kcal || 0).toString());
       setCustomProtein(Math.round(data.protein || 0).toString());
@@ -150,12 +110,8 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       setCustomFiber(Math.round(data.fiber || 0).toString());
       
     } catch (err: any) {
-      console.error("Metabolic Engine Error:", err);
-      if (err.message?.includes("not found") || err.message?.includes("API_KEY_INVALID") || err.message === "AUTH_KEY_MISSING") {
-        setError({ message: "Gemini API authorization missing. Click 'Link Key' below.", type: 'auth' });
-      } else {
-        setError({ message: "AI Engine is temporarily unavailable. Manual entry is active.", type: 'network' });
-      }
+      console.error("AI Analysis failed:", err);
+      setError("AI analysis is currently unavailable. Please enter macros manually.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -164,7 +120,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   const addCustomEntry = () => {
     const kcal = parseInt(customKcal);
     if (!customName || isNaN(kcal)) {
-      setError({ message: "Food name and calorie values are required.", type: 'logic' });
+      setError("Food name and calories are required.");
       return;
     }
 
@@ -174,8 +130,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       protein: parseInt(customProtein) || 0, 
       carbs: parseInt(customCarbs) || 0, 
       fat: parseInt(customFat) || 0, 
-      fiber: parseInt(customFiber) || 0, 
-      grams: 0 
+      fiber: parseInt(customFiber) || 0 
     };
 
     updateLog({ 
@@ -274,7 +229,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       {/* Custom Entries */}
       <div className="space-y-4">
         <div className="flex justify-between items-center px-2">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Fuel</h3>
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Entries</h3>
           <button 
             onClick={() => setShowCustom(true)}
             className="flex items-center gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest"
@@ -301,14 +256,14 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         ))}
       </div>
 
-      {/* AI Custom Form Modal */}
+      {/* Manual Entry / AI Scan Modal */}
       {showCustom && (
         <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-sm bg-[#0f172a] rounded-[40px] border border-white/10 shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8 duration-500">
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-2xl font-black text-white tracking-tight">Manual Log</h3>
-                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">AI-Powered Macro Analysis</p>
+                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Metabolic Entry Protocol</p>
               </div>
               <button onClick={() => { setShowCustom(false); setError(null); }} className="text-slate-500 hover:text-white">
                 <Trash2 size={24} />
@@ -316,16 +271,9 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
             </div>
 
             {error && (
-              <div className={`p-4 rounded-2xl flex items-start gap-3 border ${error.type === 'auth' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-3">
                 <AlertCircle size={18} className="shrink-0 mt-0.5" />
-                <div className="space-y-2">
-                  <p className="text-[11px] font-bold leading-relaxed">{error.message}</p>
-                  {error.type === 'auth' && (
-                    <button onClick={handleConnectKey} className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                      <Key size={12} /> Link Key
-                    </button>
-                  )}
-                </div>
+                <p className="text-[11px] font-bold leading-relaxed">{error}</p>
               </div>
             )}
 
