@@ -1,9 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { DailyLog, Macros, WeightEntry, UserProfile } from '../types';
 import { calculateTDEE, calculateBMR } from '../utils';
 import DaySummary from './DaySummary';
-import { Zap, Flame, Footprints, Droplets, Activity, ClipboardList, ChevronLeft, Sparkles, TrendingDown, ChevronRight, ShieldCheck, WifiOff } from 'lucide-react';
+import { Zap, Flame, Footprints, Droplets, Activity, ClipboardList, ChevronLeft, Sparkles, TrendingDown, ChevronRight, ShieldCheck, WifiOff, HardDrive, Wifi } from 'lucide-react';
 
 interface DashboardProps {
   log: DailyLog;
@@ -21,7 +21,17 @@ const Dashboard: React.FC<DashboardProps> = ({
   log, macros, burn, score, weights, updateLog, profile 
 }) => {
   const [showTodaySummary, setShowTodaySummary] = useState(false);
-  const isOnline = navigator.onLine;
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleStatus);
+    window.addEventListener('offline', handleStatus);
+    return () => {
+      window.removeEventListener('online', handleStatus);
+      window.removeEventListener('offline', handleStatus);
+    };
+  }, []);
 
   const currentWeight = log.weight || (weights.length > 0 ? weights[weights.length - 1].weight : 92);
   const bmr = useMemo(() => calculateBMR(profile, currentWeight), [profile, currentWeight]);
@@ -43,12 +53,25 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="p-6 space-y-8 animate-in fade-in duration-700 pb-32">
-      {/* Header */}
+      {/* Header with Vault Status */}
       <div className="flex justify-between items-center">
         <div>
           <div className="flex items-center gap-2 mb-1">
-             {!isOnline && <WifiOff size={12} className="text-amber-500" />}
-             <h2 className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em]">Local Node Active</h2>
+             <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+               <HardDrive size={10} className="text-emerald-400" />
+               <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Vault Secure</span>
+             </div>
+             {isOnline ? (
+               <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 rounded-full border border-blue-500/20">
+                 <Wifi size={10} className="text-blue-400" />
+                 <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">AI Sync Ready</span>
+               </div>
+             ) : (
+               <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 rounded-full border border-amber-500/20">
+                 <WifiOff size={10} className="text-amber-400" />
+                 <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Offline</span>
+               </div>
+             )}
           </div>
           <h1 className="text-3xl font-black tracking-tight text-white">Coach Alpha</h1>
         </div>
@@ -140,7 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="space-y-1">
           <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Autonomous Advice</h4>
           <p className="text-xs text-slate-400 font-bold leading-relaxed">
-            Metabolic precision is stable. Current weight is {currentWeight}kg. Protocol suggests +10min cardio to offset {macros.kcal > 1900 ? 'excess' : 'current'} intake.
+            Metabolic precision is stable. App is running from the device vault. AI features require an active data connection.
           </p>
         </div>
       </div>

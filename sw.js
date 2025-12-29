@@ -1,7 +1,6 @@
 
-const CACHE_NAME = 'elite-coach-v3-permanent';
-
-const PRE_CACHE_URLS = [
+const CACHE_NAME = 'elite-coach-vault-v1';
+const ASSETS_TO_CACHE = [
   './',
   'index.html',
   'manifest.json',
@@ -9,45 +8,59 @@ const PRE_CACHE_URLS = [
   'types.ts',
   'utils.ts',
   'constants.ts',
-  'https://cdn.tailwindcss.com',
-  'https://esm.sh/react@^19.2.3',
-  'https://esm.sh/react-dom@^19.2.3/',
-  'https://esm.sh/lucide-react@^0.562.0',
-  'https://esm.sh/@google/genai@^1.34.0'
+  'App.tsx'
 ];
 
+// 1. Install Phase: Pre-cache the app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Building Offline Vault...');
-      return cache.addAll(PRE_CACHE_URLS).catch(err => {
-        console.warn('One or more URLs failed to cache:', err);
-      });
+      console.log('📦 Vault: Localizing App Shell...');
+      return cache.addAll(ASSETS_TO_CACHE);
     })
   );
   self.skipWaiting();
 });
 
+// 2. Activate Phase: Clean up old versions
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
-      return Promise.all(keys.map((key) => {
-        if (key !== CACHE_NAME) return caches.delete(key);
-      }));
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) return caches.delete(key);
+        })
+      );
     })
   );
   self.clients.claim();
 });
 
+// 3. Fetch Interceptor: The core of host-independence
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // CRITICAL: Never cache Gemini AI calls - they need live internet
+  if (url.hostname.includes('generativelanguage.googleapis.com')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
+      // Return from cache if we have it (Zero latency, works if Vercel is down)
       if (cachedResponse) {
+        // Optional: Still fetch in background to update cache for next time (Stale-While-Revalidate)
+        if (navigator.onLine) {
+          fetch(event.request).then((networkResponse) => {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
+          }).catch(() => {});
+        }
         return cachedResponse;
       }
 
+      // If not in cache, fetch and cache (Capture external libraries from esm.sh)
       return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && !event.request.url.includes('esm.sh')) {
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic' && !url.hostname.includes('esm.sh')) {
           return networkResponse;
         }
 
@@ -58,6 +71,7 @@ self.addEventListener('fetch', (event) => {
 
         return networkResponse;
       }).catch(() => {
+        // Fallback to index.html for navigation requests (SPA routing support)
         if (event.request.mode === 'navigate') {
           return caches.match('index.html');
         }

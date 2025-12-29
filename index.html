@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Elite Coach">
   <link rel="manifest" href="manifest.json">
   <title>Elite Health Coach</title>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -65,8 +66,19 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js', { scope: './' })
-          .then(reg => console.log('Elite Offline Engine Active'))
-          .catch(err => console.warn('Offline Engine initialization bypassed:', err.message));
+          .then(reg => {
+            console.log('✅ Elite Offline Engine: Active and Shielded');
+            // If service worker is updated, reload to apply
+            reg.onupdatefound = () => {
+              const installingWorker = reg.installing;
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  window.location.reload();
+                }
+              };
+            };
+          })
+          .catch(err => console.error('❌ Offline Engine Failed:', err));
       });
     }
   </script>
