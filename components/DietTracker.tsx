@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { DailyLog, Macros } from '../types';
 import { MEAL_PLAN, DAILY_TARGETS, TARGET_RANGES } from '../constants';
-import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, WifiOff, Loader2, Save, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, WifiOff, Loader2, Save, AlertCircle, Key } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 declare var process: { env: { API_KEY: string } };
+declare var window: any;
 
 interface DietTrackerProps {
   log: DailyLog;
@@ -44,6 +45,7 @@ const InputBox = ({ label, val, setVal, colorClass = "border-white/5" }: { label
 const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => {
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
+  const [hasKey, setHasKey] = useState<boolean>(false);
   
   const [customName, setCustomName] = useState('');
   const [customKcal, setCustomKcal] = useState('');
@@ -57,6 +59,16 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   const [error, setError] = useState<{ message: string; type: 'auth' | 'network' | 'logic' } | null>(null);
 
   useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio) {
+        const selected = await window.aistudio.hasSelectedApiKey();
+        setHasKey(selected || !!process.env.API_KEY);
+      } else {
+        setHasKey(!!process.env.API_KEY);
+      }
+    };
+    checkKey();
+    
     const handleStatus = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
@@ -65,6 +77,18 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       window.removeEventListener('offline', handleStatus);
     };
   }, []);
+
+  const handleConnectKey = async () => {
+    try {
+      if (window.aistudio) {
+        await window.aistudio.openSelectKey();
+        setHasKey(true);
+        setError(null);
+      }
+    } catch (e) {
+      console.error("Key selection failed", e);
+    }
+  };
 
   const analyzeWithAI = async () => {
     if (!isOnline) {
@@ -80,15 +104,26 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     setError(null);
 
     try {
+      // Create a fresh instance for every request to ensure latest key is used
       const apiKey = process.env.API_KEY;
-      if (!apiKey || apiKey === "undefined" || apiKey.length < 10) {
-        throw new Error("AUTH_KEY_MISSING");
+      if (!apiKey || apiKey === "undefined") {
+        // If key missing, prompt user to select one
+        if (window.aistudio) {
+          await window.aistudio.openSelectKey();
+          // After returning from dialog, we assume key is available per race condition rule
+          setHasKey(true);
+          // Try to get key again from environment
+          const refreshedKey = process.env.API_KEY;
+          if (!refreshedKey) throw new Error("AUTH_KEY_MISSING");
+        } else {
+          throw new Error("AUTH_KEY_MISSING");
+        }
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Provide nutritional data for a standard serving of: "${customName}". Return JSON with keys: kcal, protein, carbs, fat, fiber, grams.`,
+        contents: `Provide nutritional data for a standard serving of: "${customName}". Return ONLY JSON with keys: kcal, protein, carbs, fat, fiber, grams.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -109,7 +144,6 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       const text = response.text;
       if (!text) throw new Error("EMPTY_RESPONSE");
       
-      // Ultra-robust JSON extraction
       const match = text.match(/\{[\s\S]*\}/);
       const cleanJson = match ? match[0] : text;
       const data = JSON.parse(cleanJson);
@@ -122,8 +156,8 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       
     } catch (err: any) {
       console.error("Metabolic Engine Trace:", err);
-      if (err.message === "AUTH_KEY_MISSING") {
-        setError({ message: "AI API Key missing. Please check Netlify Environment Variables.", type: 'auth' });
+      if (err.message.includes("not found") || err.message.includes("AUTH_KEY_MISSING")) {
+        setError({ message: "Gemini API Key required. Click 'Link Key' below.", type: 'auth' });
       } else {
         setError({ message: "AI analysis failed. Please enter macros manually.", type: 'network' });
       }
@@ -250,9 +284,20 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 </div>
                 
                 {error && (
-                  <div className={`p-4 rounded-2xl flex items-start gap-3 border ${error.type === 'auth' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
-                    <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                    <p className="text-[10px] font-bold leading-tight uppercase tracking-wider">{error.message}</p>
+                  <div className={`p-4 rounded-2xl flex flex-col gap-3 border ${error.type === 'auth' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+                    <div className="flex items-start gap-3">
+                      <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                      <p className="text-[10px] font-bold leading-tight uppercase tracking-wider">{error.message}</p>
+                    </div>
+                    {error.type === 'auth' && (
+                      <button 
+                        onClick={handleConnectKey}
+                        className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
+                      >
+                        <Key size={12} />
+                        Link Paid API Key
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -263,6 +308,12 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                   <Save size={18} />
                   Confirm Entry
                 </button>
+             </div>
+             
+             <div className="pt-2 text-center">
+                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[8px] font-black text-slate-600 uppercase tracking-widest hover:text-blue-400 transition-colors">
+                  Gemini API Billing Documentation
+                </a>
              </div>
           </div>
         )}
