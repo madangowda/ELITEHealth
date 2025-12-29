@@ -1,9 +1,12 @@
 
 import React, { useState } from 'react';
-import { DailyLog, Macros, MealOption } from '../types';
+import { DailyLog, Macros } from '../types';
 import { MEAL_PLAN, DAILY_TARGETS, TARGET_RANGES } from '../constants';
-import { CheckCircle2, Plus, AlertTriangle, ChevronDown, ChevronUp, Scale, Flame, Trash2, X, RotateCcw, Sparkles, Loader2, Check, Info } from 'lucide-react';
+import { CheckCircle2, Plus, ChevronDown, ChevronUp, Trash2, Sparkles } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
+
+// Declare process for TypeScript to satisfy the strict API key requirement
+declare var process: { env: { API_KEY: string } };
 
 interface DietTrackerProps {
   log: DailyLog;
@@ -27,16 +30,6 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       }
     });
     setExpandedCat(null);
-  };
-
-  const clearSelect = (category: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    updateLog({
-      meals: {
-        ...log.meals,
-        [category]: undefined
-      }
-    });
   };
 
   const analyzeWithAI = async () => {
@@ -64,7 +57,11 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
           },
         },
       });
-      const data = JSON.parse(response.text);
+      
+      const responseText = response.text;
+      if (!responseText) throw new Error("Empty AI response");
+      
+      const data = JSON.parse(responseText);
       setAiResult(data);
       setCustomKcal(data.kcal.toString());
     } catch (error) {
@@ -101,7 +98,6 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         </div>
       </div>
 
-      {/* Targets Header */}
       <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Protocol</h3>
