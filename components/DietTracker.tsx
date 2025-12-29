@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DailyLog, Macros } from '../types';
 import { MEAL_PLAN, DAILY_TARGETS, TARGET_RANGES } from '../constants';
-import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, WifiOff, Loader2, Save, AlertCircle, Key } from 'lucide-react';
+import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Key, Info, Utensils } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 declare var process: { env: { API_KEY: string } };
@@ -45,7 +45,7 @@ const InputBox = ({ label, val, setVal, colorClass = "border-white/5" }: { label
 const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => {
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
-  const [hasKey, setHasKey] = useState<boolean>(false);
+  const [hasKey, setHasKey] = useState<boolean>(true); // Default to true to attempt AI calls
   
   const [customName, setCustomName] = useState('');
   const [customKcal, setCustomKcal] = useState('');
@@ -59,15 +59,13 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   const [error, setError] = useState<{ message: string; type: 'auth' | 'network' | 'logic' } | null>(null);
 
   useEffect(() => {
-    const checkKey = async () => {
+    const checkKeyStatus = async () => {
       if (window.aistudio) {
         const selected = await window.aistudio.hasSelectedApiKey();
-        setHasKey(selected || !!process.env.API_KEY);
-      } else {
-        setHasKey(!!process.env.API_KEY);
+        setHasKey(selected || (!!process.env.API_KEY && process.env.API_KEY !== 'undefined'));
       }
     };
-    checkKey();
+    checkKeyStatus();
     
     const handleStatus = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', handleStatus);
@@ -79,24 +77,25 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   }, []);
 
   const handleConnectKey = async () => {
-    try {
-      if (window.aistudio) {
+    if (window.aistudio) {
+      try {
         await window.aistudio.openSelectKey();
+        // Rule: Assume success after trigger to mitigate race conditions
         setHasKey(true);
         setError(null);
+      } catch (e) {
+        console.error("Key selection failed", e);
       }
-    } catch (e) {
-      console.error("Key selection failed", e);
     }
   };
 
   const analyzeWithAI = async () => {
     if (!isOnline) {
-      setError({ message: "Network offline. AI analysis unavailable.", type: 'network' });
+      setError({ message: "Network connection required for AI scanning.", type: 'network' });
       return;
     }
     if (!customName || customName.length < 2) {
-      setError({ message: "Identify food item first.", type: 'logic' });
+      setError({ message: "Please enter a valid food description first.", type: 'logic' });
       return;
     }
 
@@ -104,26 +103,23 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     setError(null);
 
     try {
-      // Create a fresh instance for every request to ensure latest key is used
       const apiKey = process.env.API_KEY;
+      
+      // If key is missing, prompt selection immediately
       if (!apiKey || apiKey === "undefined") {
-        // If key missing, prompt user to select one
         if (window.aistudio) {
           await window.aistudio.openSelectKey();
-          // After returning from dialog, we assume key is available per race condition rule
           setHasKey(true);
-          // Try to get key again from environment
-          const refreshedKey = process.env.API_KEY;
-          if (!refreshedKey) throw new Error("AUTH_KEY_MISSING");
         } else {
           throw new Error("AUTH_KEY_MISSING");
         }
       }
 
+      // Initialize fresh for every call
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Provide nutritional data for a standard serving of: "${customName}". Return ONLY JSON with keys: kcal, protein, carbs, fat, fiber, grams.`,
+        contents: `Analyze: "${customName}". Return JSON: {kcal, protein, carbs, fat, fiber, grams}.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -145,8 +141,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       if (!text) throw new Error("EMPTY_RESPONSE");
       
       const match = text.match(/\{[\s\S]*\}/);
-      const cleanJson = match ? match[0] : text;
-      const data = JSON.parse(cleanJson);
+      const data = JSON.parse(match ? match[0] : text);
       
       setCustomKcal(Math.round(data.kcal || 0).toString());
       setCustomProtein(Math.round(data.protein || 0).toString());
@@ -155,11 +150,11 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       setCustomFiber(Math.round(data.fiber || 0).toString());
       
     } catch (err: any) {
-      console.error("Metabolic Engine Trace:", err);
-      if (err.message.includes("not found") || err.message.includes("AUTH_KEY_MISSING")) {
-        setError({ message: "Gemini API Key required. Click 'Link Key' below.", type: 'auth' });
+      console.error("Metabolic Engine Error:", err);
+      if (err.message?.includes("not found") || err.message?.includes("API_KEY_INVALID") || err.message === "AUTH_KEY_MISSING") {
+        setError({ message: "Gemini API authorization missing. Click 'Link Key' below.", type: 'auth' });
       } else {
-        setError({ message: "AI analysis failed. Please enter macros manually.", type: 'network' });
+        setError({ message: "AI Engine is temporarily unavailable. Manual entry is active.", type: 'network' });
       }
     } finally {
       setIsAnalyzing(false);
@@ -169,7 +164,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   const addCustomEntry = () => {
     const kcal = parseInt(customKcal);
     if (!customName || isNaN(kcal)) {
-      setError({ message: "Food Name and Calories are mandatory.", type: 'logic' });
+      setError({ message: "Food name and calorie values are required.", type: 'logic' });
       return;
     }
 
@@ -220,179 +215,155 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       </div>
 
       {/* Target Progress Card */}
-      <div className="stealth-card rounded-[40px] p-8 shadow-2xl space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Target Delta</h3>
-          </div>
-          <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full uppercase border border-blue-400/20">
-            {TARGET_RANGES.kcal} Protocol
-          </span>
-        </div>
+      <div className="stealth-card rounded-[32px] p-6 space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <MacroGoal label="Protein" val={macros.protein} target={DAILY_TARGETS.protein} unit="g" color="text-blue-400" bg="bg-white/5" />
-          <MacroGoal label="Carbs" val={macros.carbs} target={DAILY_TARGETS.carbs} unit="g" color="text-emerald-400" bg="bg-white/5" />
-          <MacroGoal label="Fat" val={macros.fat} target={DAILY_TARGETS.fat} unit="g" color="text-amber-400" bg="bg-white/5" />
-          <MacroGoal label="Fiber" val={macros.fiber} target={DAILY_TARGETS.fiber} unit="g" color="text-indigo-400" bg="bg-white/5" />
+          <MacroGoal label="Protein" val={macros.protein} target={DAILY_TARGETS.protein} unit="g" color="text-blue-400" bg="bg-blue-500/5" />
+          <MacroGoal label="Carbs" val={macros.carbs} target={DAILY_TARGETS.carbs} unit="g" color="text-emerald-400" bg="bg-emerald-500/5" />
+          <MacroGoal label="Fat" val={macros.fat} target={DAILY_TARGETS.fat} unit="g" color="text-amber-400" bg="bg-amber-500/5" />
+          <MacroGoal label="Fiber" val={macros.fiber} target={DAILY_TARGETS.fiber} unit="g" color="text-indigo-400" bg="bg-indigo-500/5" />
         </div>
-      </div>
-
-      {/* Manual Entry System */}
-      <div className="space-y-4">
-        {!showCustom ? (
-          <button 
-            onClick={() => { setShowCustom(true); setError(null); }}
-            className="w-full py-6 bg-white/5 border-2 border-dashed border-white/10 rounded-[32px] flex items-center justify-center gap-4 text-slate-400 font-black uppercase tracking-[0.2em] text-[10px] hover:bg-white/10 active:scale-95 transition-all"
-          >
-            <Plus size={16} />
-            Add Custom Entry / AI Scan
-          </button>
-        ) : (
-          <div className="stealth-card rounded-[40px] p-8 shadow-2xl space-y-6 animate-in zoom-in-95 duration-300">
-             <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-blue-400" />
-                  <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Fuel Entry Protocol</h3>
-                </div>
-                <button onClick={() => setShowCustom(false)} className="text-[10px] font-black text-slate-500 uppercase">Cancel</button>
-             </div>
-
-             <div className="space-y-4">
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="Enter food name..." 
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    className="flex-1 bg-slate-900 border border-white/10 rounded-2xl px-5 py-4 text-white font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  />
-                  <button 
-                    onClick={analyzeWithAI}
-                    disabled={isAnalyzing}
-                    className="bg-blue-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center disabled:opacity-50 transition-all hover:bg-blue-500 active:scale-90"
-                  >
-                    {isAnalyzing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <InputBox label="Kcal" val={customKcal} setVal={setCustomKcal} colorClass="border-white/20" />
-                  <InputBox label="Protein" val={customProtein} setVal={setCustomProtein} colorClass="border-blue-500/30" />
-                  <InputBox label="Carbs" val={customCarbs} setVal={setCustomCarbs} colorClass="border-emerald-500/30" />
-                  <InputBox label="Fat" val={customFat} setVal={setCustomFat} colorClass="border-amber-500/30" />
-                </div>
-                
-                {error && (
-                  <div className={`p-4 rounded-2xl flex flex-col gap-3 border ${error.type === 'auth' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
-                    <div className="flex items-start gap-3">
-                      <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                      <p className="text-[10px] font-bold leading-tight uppercase tracking-wider">{error.message}</p>
-                    </div>
-                    {error.type === 'auth' && (
-                      <button 
-                        onClick={handleConnectKey}
-                        className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
-                      >
-                        <Key size={12} />
-                        Link Paid API Key
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <button 
-                  onClick={addCustomEntry}
-                  className="w-full py-5 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl"
-                >
-                  <Save size={18} />
-                  Confirm Entry
-                </button>
-             </div>
-             
-             <div className="pt-2 text-center">
-                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[8px] font-black text-slate-600 uppercase tracking-widest hover:text-blue-400 transition-colors">
-                  Gemini API Billing Documentation
-                </a>
-             </div>
-          </div>
-        )}
       </div>
 
       {/* Meal Categories */}
       <div className="space-y-4">
-        {MEAL_PLAN.map((cat) => {
-          const selectedId = log.meals[cat.id as keyof typeof log.meals] as string;
-          const selectedOption = cat.options.find(o => o.id === selectedId);
-          const isExpanded = expandedCat === cat.id;
-
-          return (
-            <div key={cat.id} className="stealth-card rounded-[32px] overflow-hidden">
-              <button 
-                onClick={() => setExpandedCat(isExpanded ? null : cat.id)}
-                className="w-full p-6 flex items-center justify-between text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${selectedOption ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-500/10 text-slate-500'}`}>
-                    {selectedOption ? <CheckCircle2 size={24} /> : <div className="w-2 h-2 rounded-full bg-current" />}
-                  </div>
-                  <div>
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">{cat.label}</h3>
-                    <p className="text-sm font-black text-white">{selectedOption ? selectedOption.name : 'Select Protocol'}</p>
-                  </div>
-                </div>
-                <ChevronDown size={20} className={`text-slate-600 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isExpanded && (
-                <div className="px-4 pb-4 grid grid-cols-1 gap-2 animate-in slide-in-from-top-2">
-                  {cat.options.map(option => (
-                    <button
-                      key={option.id}
-                      onClick={() => handleSelect(cat.id, option.id)}
-                      className={`p-4 rounded-2xl text-left border transition-all ${selectedId === option.id ? 'bg-blue-600 border-blue-400 shadow-lg' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-black text-white">{option.name}</span>
-                        <span className="text-[10px] font-black text-slate-400">{option.kcal} kcal</span>
-                      </div>
-                      <div className="flex gap-3 mt-1">
-                        <span className="text-[8px] font-bold text-slate-500 uppercase">P: {option.protein}g</span>
-                        <span className="text-[8px] font-bold text-slate-500 uppercase">C: {option.carbs}g</span>
-                        <span className="text-[8px] font-bold text-slate-500 uppercase">F: {option.fat}g</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Custom Entries List */}
-      {(log.meals.custom?.length || 0) > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Custom Injections</h3>
-          {log.meals.custom?.map((entry, idx) => (
-            <div key={idx} className="stealth-card rounded-[32px] p-6 flex items-center justify-between">
+        {MEAL_PLAN.map((cat) => (
+          <div key={cat.id} className="bg-white/5 rounded-[32px] overflow-hidden border border-white/5">
+            <button 
+              onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}
+              className="w-full p-6 flex items-center justify-between"
+            >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center">
-                  <Sparkles size={18} />
+                <div className="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center">
+                  <Utensils size={18} />
                 </div>
-                <div>
-                  <h4 className="text-sm font-black text-white leading-none mb-1">{entry.name}</h4>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase">{entry.macros.kcal} kcal • {entry.macros.protein}g Protein</p>
+                <div className="text-left">
+                  <h4 className="text-sm font-black text-white">{cat.label}</h4>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                    {log.meals[cat.id as keyof DailyLog['meals']] ? cat.options.find(o => o.id === log.meals[cat.id as keyof DailyLog['meals']])?.name : 'Nothing Logged'}
+                  </p>
                 </div>
               </div>
-              <button 
-                onClick={() => removeCustomEntry(idx)}
-                className="w-10 h-10 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500/20 transition-all"
-              >
-                <Trash2 size={18} />
+              <ChevronDown size={20} className={`text-slate-500 transition-transform ${expandedCat === cat.id ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {expandedCat === cat.id && (
+              <div className="px-4 pb-6 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                {cat.options.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => handleSelect(cat.id, opt.id)}
+                    className={`w-full p-4 rounded-2xl flex items-center justify-between text-left transition-all ${
+                      log.meals[cat.id as keyof DailyLog['meals']] === opt.id 
+                      ? 'bg-blue-600 text-white shadow-lg' 
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-black text-xs">{opt.name}</div>
+                      <div className="text-[10px] opacity-60 mt-0.5">{opt.kcal} kcal • {opt.quantity}</div>
+                    </div>
+                    {log.meals[cat.id as keyof DailyLog['meals']] === opt.id && <CheckCircle2 size={16} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Custom Entries */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center px-2">
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Fuel</h3>
+          <button 
+            onClick={() => setShowCustom(true)}
+            className="flex items-center gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest"
+          >
+            <Plus size={14} /> Add Manual
+          </button>
+        </div>
+
+        {log.meals.custom?.map((entry, idx) => (
+          <div key={idx} className="stealth-card rounded-[32px] p-5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-white">{entry.name}</h4>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{entry.macros.kcal} kcal</p>
+              </div>
+            </div>
+            <button onClick={() => removeCustomEntry(idx)} className="text-slate-600 hover:text-rose-500 transition-colors">
+              <Trash2 size={18} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* AI Custom Form Modal */}
+      {showCustom && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-[#0f172a] rounded-[40px] border border-white/10 shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8 duration-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-2xl font-black text-white tracking-tight">Manual Log</h3>
+                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">AI-Powered Macro Analysis</p>
+              </div>
+              <button onClick={() => { setShowCustom(false); setError(null); }} className="text-slate-500 hover:text-white">
+                <Trash2 size={24} />
               </button>
             </div>
-          ))}
+
+            {error && (
+              <div className={`p-4 rounded-2xl flex items-start gap-3 border ${error.type === 'auth' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold leading-relaxed">{error.message}</p>
+                  {error.type === 'auth' && (
+                    <button onClick={handleConnectKey} className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                      <Key size={12} /> Link Key
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">Food Description</label>
+                <div className="relative">
+                  <input 
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    placeholder="e.g., 200g of Grilled Chicken"
+                    className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-white font-bold text-sm outline-none pr-12"
+                  />
+                  <button 
+                    onClick={analyzeWithAI}
+                    disabled={isAnalyzing}
+                    className="absolute right-2 top-2 w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg active:scale-90 disabled:opacity-50 transition-all"
+                  >
+                    {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <InputBox label="Calories" val={customKcal} setVal={setCustomKcal} colorClass="border-blue-500/20" />
+                <InputBox label="Protein (g)" val={customProtein} setVal={setCustomProtein} />
+                <InputBox label="Carbs (g)" val={customCarbs} setVal={setCustomCarbs} />
+                <InputBox label="Fat (g)" val={customFat} setVal={setCustomFat} />
+              </div>
+            </div>
+
+            <button 
+              onClick={addCustomEntry}
+              className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              <Save size={18} /> Confirm Entry
+            </button>
+          </div>
         </div>
       )}
     </div>
