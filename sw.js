@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'elite-coach-vault-v1';
+const CACHE_NAME = 'elite-coach-vault-v2';
 const ASSETS_TO_CACHE = [
   './',
   'index.html',
@@ -11,18 +11,16 @@ const ASSETS_TO_CACHE = [
   'App.tsx'
 ];
 
-// 1. Install Phase: Pre-cache the app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('📦 Vault: Localizing App Shell...');
+      console.log('📦 Vault v2: Localizing App Shell...');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
   self.skipWaiting();
 });
 
-// 2. Activate Phase: Clean up old versions
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -36,20 +34,16 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 3. Fetch Interceptor
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Gemini AI bypass
   if (url.hostname.includes('generativelanguage.googleapis.com')) return;
 
-  // Handle Video Requests (Standard & Range)
   if (url.pathname.includes('/attach/')) {
     event.respondWith(handleVideoFetch(event.request));
     return;
   }
 
-  // Standard Asset Strategy (Stale-While-Revalidate)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
@@ -71,10 +65,10 @@ async function handleVideoFetch(request) {
   const cache = await caches.open(CACHE_NAME);
   const cachedResponse = await cache.match(request.url);
 
-  // If not cached, fetch the ENTIRE file as a standard 200 OK (bypass range headers)
   if (!cachedResponse) {
     try {
-      const response = await fetch(request.url); // Standard fetch without range
+      // Use a clean fetch without Range headers to cache the whole file
+      const response = await fetch(request.url);
       if (response.status === 200) {
         await cache.put(request.url, response.clone());
         return serveRange(request, response);

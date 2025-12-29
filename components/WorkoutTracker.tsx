@@ -9,22 +9,77 @@ interface WorkoutTrackerProps {
   updateLog: (updated: Partial<DailyLog>) => void;
 }
 
+const VideoPlayer: React.FC<{ exercise: Exercise; isExpanded: boolean }> = ({ exercise, isExpanded }) => {
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const isYouTube = exercise.videoUrl?.includes('youtube.com') || exercise.videoUrl?.includes('youtu.be');
+  
+  useEffect(() => {
+    if (isExpanded && videoRef.current && !isYouTube) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isExpanded, isYouTube]);
+
+  if (!exercise.videoUrl) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-slate-50/50">
+        <AlertCircle size={32} className="text-slate-300 mb-3 opacity-20" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tutorial Unlocked In V2</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-slate-50/50">
+        <AlertCircle size={32} className="text-rose-300 mb-3" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">Feed Offline / Invalid Source</span>
+      </div>
+    );
+  }
+
+  if (isYouTube) {
+    const videoId = exercise.videoUrl.split('/').pop()?.split('?')[0];
+    return (
+      <iframe 
+        src={`${exercise.videoUrl}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}`}
+        title={exercise.name}
+        className="w-full h-full border-0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+    );
+  }
+
+  return (
+    <>
+      <video 
+        ref={videoRef}
+        src={exercise.videoUrl}
+        autoPlay loop muted playsInline preload="auto"
+        onLoadStart={() => setLoading(true)}
+        onCanPlay={() => setLoading(false)}
+        onError={() => setError(true)}
+        className={`w-full h-full object-cover transition-opacity duration-1000 ${loading ? 'opacity-0' : 'opacity-100'}`}
+      />
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-blue-400">
+          <Loader2 className="animate-spin mb-3" size={32} />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Syncing Feed...</span>
+        </div>
+      )}
+    </>
+  );
+};
+
 const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [videoError, setVideoError] = useState<Record<string, boolean>>({});
-  const [videoLoading, setVideoLoading] = useState<Record<string, boolean>>({});
-  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   
   const dayOfWeek = new Date(log.date).getDay();
   const adjustedIndex = (dayOfWeek + 6) % 7;
   const currentWorkout = WORKOUT_PLAN[adjustedIndex];
-
-  useEffect(() => {
-    if (expandedId && videoRefs.current[expandedId]) {
-      const video = videoRefs.current[expandedId];
-      if (video) video.play().catch(() => {});
-    }
-  }, [expandedId]);
 
   const toggleExercise = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -77,10 +132,7 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog }) => {
         {currentWorkout.exercises.map((ex) => {
           const completed = log.completedExercises.includes(ex.id);
           const isExpanded = expandedId === ex.id;
-          const hasError = videoError[ex.id];
-          const isLoading = videoLoading[ex.id];
           const estBurn = Math.round(ex.kcalPerUnit * (ex.unit === 'second' ? 40 : 1) * ex.sets);
-          const isYouTube = ex.videoUrl?.includes('youtube.com') || ex.videoUrl?.includes('youtu.be');
           
           return (
             <div
@@ -119,41 +171,7 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog }) => {
                 <div className="px-5 pb-6 space-y-6 animate-in slide-in-from-top-4 duration-500">
                   {/* Video Cinema Container */}
                   <div className="relative rounded-[24px] overflow-hidden aspect-[16/10] bg-slate-900 shadow-2xl border border-slate-800">
-                    {ex.videoUrl && !hasError ? (
-                      isYouTube ? (
-                        <iframe 
-                          src={`${ex.videoUrl}?autoplay=1&mute=1&loop=1&playlist=${ex.videoUrl.split('/').pop()?.split('?')[0]}&controls=0&modestbranding=1`}
-                          title={ex.name}
-                          className="w-full h-full border-0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <>
-                          <video 
-                            ref={(el) => { videoRefs.current[ex.id] = el; }}
-                            key={ex.videoUrl}
-                            src={ex.videoUrl}
-                            autoPlay loop muted playsInline preload="auto"
-                            onLoadStart={() => setVideoLoading(prev => ({...prev, [ex.id]: true}))}
-                            onCanPlay={() => setVideoLoading(prev => ({...prev, [ex.id]: false}))}
-                            onError={() => setVideoError(prev => ({...prev, [ex.id]: true}))}
-                            className={`w-full h-full object-cover transition-opacity duration-1000 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                          />
-                          {isLoading && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-blue-400">
-                              <Loader2 className="animate-spin mb-3" size={32} />
-                              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Syncing Feed...</span>
-                            </div>
-                          )}
-                        </>
-                      )
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-slate-50/50">
-                        <AlertCircle size={32} className="text-slate-300 mb-3 opacity-20" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Instructional Mode Only</span>
-                      </div>
-                    )}
+                    <VideoPlayer exercise={ex} isExpanded={isExpanded} />
                   </div>
 
                   <div className="bg-slate-50 rounded-2xl p-5 space-y-4">
