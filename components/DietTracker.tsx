@@ -5,6 +5,7 @@ import { MEAL_PLAN, DAILY_TARGETS } from '../constants';
 import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Utensils, Hash, Minus, Edit3 } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
+// process.env.API_KEY is defined via the vite.config.ts 'define' block
 declare var process: { env: { API_KEY: string } };
 
 interface DietTrackerProps {
@@ -82,10 +83,15 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     setError(null);
 
     try {
+      // Ensure the key exists
+      if (!process.env.API_KEY) {
+        throw new Error("Missing AI configuration. Please check environment variables.");
+      }
+
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Provide estimated nutritional data for a standard single serving of: "${customName}". Return JSON only.`,
+        contents: `Provide estimated nutritional data for a standard single serving of: "${customName}". Return JSON only with fields: kcal, protein, carbs, fat, fiber.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -103,17 +109,21 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       });
 
       if (response.text) {
-        const data = JSON.parse(response.text.trim());
-        setCustomKcal(data.kcal?.toString() || '0');
-        setCustomProtein(data.protein?.toString() || '0');
-        setCustomCarbs(data.carbs?.toString() || '0');
-        setCustomFat(data.fat?.toString() || '0');
-        setCustomFiber(data.fiber?.toString() || '0');
+        // Robust cleaning: remove markdown code blocks (e.g., ```json) and trim whitespace
+        const cleanJson = response.text.replace(/```json|```/g, "").trim();
+        const data = JSON.parse(cleanJson);
+        
+        // Update state with rounded numeric values
+        setCustomKcal(Math.round(data.kcal || 0).toString());
+        setCustomProtein(Math.round(data.protein || 0).toString());
+        setCustomCarbs(Math.round(data.carbs || 0).toString());
+        setCustomFat(Math.round(data.fat || 0).toString());
+        setCustomFiber(Math.round(data.fiber || 0).toString());
       }
       
     } catch (err: any) {
       console.error("AI Analysis failed:", err);
-      setError("AI analysis failed. Please enter macros manually.");
+      setError("AI analysis unavailable. Manual entry is active.");
     } finally {
       setIsAnalyzing(false);
     }
