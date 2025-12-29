@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DailyLog, Macros } from '../types';
 import { MEAL_PLAN, DAILY_TARGETS } from '../constants';
-import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Utensils } from 'lucide-react';
+import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Utensils, Hash } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 declare var process: { env: { API_KEY: string } };
@@ -28,11 +28,12 @@ const MacroGoal: React.FC<{ label: string; val: number; target: number; unit: st
   );
 };
 
-const InputBox = ({ label, val, setVal, colorClass = "border-white/5" }: { label: string, val: string, setVal: (v: string) => void, colorClass?: string }) => (
+const InputBox = ({ label, val, setVal, colorClass = "border-white/5", step = "1" }: { label: string, val: string, setVal: (v: string) => void, colorClass?: string, step?: string }) => (
   <div className="space-y-1.5">
     <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">{label}</label>
     <input 
       type="number" 
+      step={step}
       value={val}
       onChange={(e) => setVal(e.target.value)}
       placeholder="0"
@@ -51,6 +52,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   const [customCarbs, setCustomCarbs] = useState('');
   const [customFat, setCustomFat] = useState('');
   const [customFiber, setCustomFiber] = useState('');
+  const [customQty, setCustomQty] = useState('1.0');
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -80,11 +82,10 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     setError(null);
 
     try {
-      // Rule: Obtain API key exclusively from process.env.API_KEY
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Provide estimated nutritional data for: "${customName}". Return JSON only.`,
+        contents: `Provide estimated nutritional data for a standard single serving of: "${customName}". Return JSON.`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -111,37 +112,40 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       
     } catch (err: any) {
       console.error("AI Analysis failed:", err);
-      setError("AI analysis is currently unavailable. Please enter macros manually.");
+      setError("AI analysis unavailable. Please enter parameters manually.");
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const addCustomEntry = () => {
-    const kcal = parseInt(customKcal);
+    const kcal = parseFloat(customKcal);
+    const qty = parseFloat(customQty) || 1.0;
+    
     if (!customName || isNaN(kcal)) {
-      setError("Food name and calories are required.");
+      setError("Food name and calorie values are required.");
       return;
     }
 
     const currentCustom = log.meals.custom || [];
+    // Final macros = base values * quantity
     const entryMacros: Macros = { 
-      kcal: kcal, 
-      protein: parseInt(customProtein) || 0, 
-      carbs: parseInt(customCarbs) || 0, 
-      fat: parseInt(customFat) || 0, 
-      fiber: parseInt(customFiber) || 0 
+      kcal: kcal * qty, 
+      protein: (parseFloat(customProtein) || 0) * qty, 
+      carbs: (parseFloat(customCarbs) || 0) * qty, 
+      fat: (parseFloat(customFat) || 0) * qty, 
+      fiber: (parseFloat(customFiber) || 0) * qty 
     };
 
     updateLog({ 
       meals: { 
         ...log.meals, 
-        custom: [...currentCustom, { name: customName, macros: entryMacros }] 
+        custom: [...currentCustom, { name: `${customName} (x${qty})`, macros: entryMacros }] 
       } 
     });
 
     setCustomName(''); setCustomKcal(''); setCustomProtein(''); 
-    setCustomCarbs(''); setCustomFat(''); setCustomFiber('');
+    setCustomCarbs(''); setCustomFat(''); setCustomFiber(''); setCustomQty('1.0');
     setShowCustom(false); setError(null);
   };
 
@@ -226,15 +230,15 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         ))}
       </div>
 
-      {/* Custom Entries */}
+      {/* Custom Entries List */}
       <div className="space-y-4">
         <div className="flex justify-between items-center px-2">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Entries</h3>
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Fuel</h3>
           <button 
             onClick={() => setShowCustom(true)}
             className="flex items-center gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest"
           >
-            <Plus size={14} /> Add Manual
+            <Plus size={14} /> Add Manual / AI
           </button>
         </div>
 
@@ -246,7 +250,10 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
               </div>
               <div>
                 <h4 className="text-xs font-black text-white">{entry.name}</h4>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{entry.macros.kcal} kcal</p>
+                <div className="flex gap-2 mt-1">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{Math.round(entry.macros.kcal)} kcal</p>
+                  <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">P: {Math.round(entry.macros.protein)}g</p>
+                </div>
               </div>
             </div>
             <button onClick={() => removeCustomEntry(idx)} className="text-slate-600 hover:text-rose-500 transition-colors">
@@ -256,14 +263,14 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         ))}
       </div>
 
-      {/* Manual Entry / AI Scan Modal */}
+      {/* Custom Entry Modal - Manual + AI Scan */}
       {showCustom && (
         <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[#0f172a] rounded-[40px] border border-white/10 shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8 duration-500">
+          <div className="w-full max-w-sm bg-[#0f172a] rounded-[40px] border border-white/10 shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8 duration-500 max-h-[90vh] overflow-y-auto no-scrollbar">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-2xl font-black text-white tracking-tight">Manual Log</h3>
-                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Metabolic Entry Protocol</p>
+                <h3 className="text-2xl font-black text-white tracking-tight">Custom Entry</h3>
+                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">Log Parameters Manually or via AI</p>
               </div>
               <button onClick={() => { setShowCustom(false); setError(null); }} className="text-slate-500 hover:text-white">
                 <Trash2 size={24} />
@@ -278,13 +285,14 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
             )}
 
             <div className="space-y-4">
+              {/* Food Name & AI Scan */}
               <div className="space-y-1.5">
-                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">Food Description</label>
+                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">Food Item Name</label>
                 <div className="relative">
                   <input 
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="e.g., 200g of Grilled Chicken"
+                    placeholder="e.g. Avocado Toast"
                     className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-white font-bold text-sm outline-none pr-12"
                   />
                   <button 
@@ -297,20 +305,46 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 </div>
               </div>
 
+              {/* Quantity Multiplier */}
+              <div className="space-y-1.5">
+                <label className="text-[8px] font-black text-blue-400 uppercase tracking-widest pl-1">Quantity Multiplier (Multiple of real number)</label>
+                <div className="relative">
+                  <div className="absolute left-4 top-3 text-slate-500"><Hash size={14} /></div>
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    value={customQty}
+                    onChange={(e) => setCustomQty(e.target.value)}
+                    placeholder="1.0"
+                    className="w-full bg-slate-900 border border-blue-500/20 rounded-xl px-10 py-3 text-white font-bold text-sm outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Macro Parameters */}
               <div className="grid grid-cols-2 gap-4">
-                <InputBox label="Calories" val={customKcal} setVal={setCustomKcal} colorClass="border-blue-500/20" />
+                <InputBox label="Base Calories" val={customKcal} setVal={setCustomKcal} colorClass="border-blue-500/20" />
                 <InputBox label="Protein (g)" val={customProtein} setVal={setCustomProtein} />
                 <InputBox label="Carbs (g)" val={customCarbs} setVal={setCustomCarbs} />
                 <InputBox label="Fat (g)" val={customFat} setVal={setCustomFat} />
+                <InputBox label="Fiber (g)" val={customFiber} setVal={setCustomFiber} />
               </div>
             </div>
 
-            <button 
-              onClick={addCustomEntry}
-              className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              <Save size={18} /> Confirm Entry
-            </button>
+            <div className="pt-2 border-t border-white/5">
+              <div className="flex justify-between items-center mb-4 px-1">
+                <span className="text-[9px] font-black text-slate-500 uppercase">Calculated Total</span>
+                <span className="text-lg font-black text-emerald-400">
+                  {Math.round((parseFloat(customKcal) || 0) * (parseFloat(customQty) || 1.0))} kcal
+                </span>
+              </div>
+              <button 
+                onClick={addCustomEntry}
+                className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Save size={18} /> Confirm Injection
+              </button>
+            </div>
           </div>
         </div>
       )}
