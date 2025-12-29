@@ -64,9 +64,10 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(reg => {
-          console.log('Elite Offline Engine Active');
-        });
+        // Use relative path to avoid origin mismatch errors
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .then(reg => console.log('Elite Offline Engine Active'))
+          .catch(err => console.warn('Offline Engine initialization bypassed:', err.message));
       });
     }
   </script>
