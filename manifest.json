@@ -1,13 +1,13 @@
 
 {
-  "name": "Elite Health Coach",
+  "name": "Elite Coach Pro",
   "short_name": "Coach",
-  "description": "Professional-grade personal health tracker.",
+  "description": "Professional performance tracker for athletes.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#2563eb",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "orientation": "portrait",
   "icons": [
     {

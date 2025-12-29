@@ -3,28 +3,45 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.json">
   <title>Elite Health Coach</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* System Font Stack for Offline Reliability */
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
-      background-color: #f8fafc;
+      background-color: #0f172a;
+      color: #f8fafc;
+      overscroll-behavior-y: contain;
     }
-    .safe-bottom {
-      padding-bottom: env(safe-area-inset-bottom);
+    .glass-nav {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
+    .stealth-card {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
+    .dark-hud {
+      background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
     }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .progress-pill {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+    }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
   </style>
 <script type="importmap">
 {
@@ -41,16 +58,14 @@
 }
 </script>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body>
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(reg => {
-          console.log('SW registered:', reg.scope);
-        }).catch(err => {
-          console.debug('SW registration failed:', err);
+          console.log('Elite Offline Engine Active');
         });
       });
     }
