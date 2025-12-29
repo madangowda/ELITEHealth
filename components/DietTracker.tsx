@@ -16,8 +16,15 @@ interface DietTrackerProps {
 const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => {
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
+  
+  // Manual Input States
   const [customName, setCustomName] = useState('');
   const [customKcal, setCustomKcal] = useState('');
+  const [customProtein, setCustomProtein] = useState('');
+  const [customCarbs, setCustomCarbs] = useState('');
+  const [customFat, setCustomFat] = useState('');
+  const [customFiber, setCustomFiber] = useState('');
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<Macros | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -48,10 +55,11 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     setError(null);
 
     try {
+      // Create instance right before call as per guidelines
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Analyze nutritional content for: "${customName}". Return JSON only.`,
+        contents: `Precisely estimate nutritional data for a standard serving of: "${customName}". Use your thinking process to determine realistic weights. Return only JSON.`,
         config: {
           thinkingConfig: { thinkingBudget: 1024 },
           responseMimeType: "application/json",
@@ -73,9 +81,17 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       const text = response.text;
       if (!text) throw new Error("Empty AI Response");
       
-      // Strict JSON cleaning
-      const cleanJson = text.replace(/```json|```/g, '').trim();
+      // Strict JSON cleaning to handle different environment responses
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const cleanJson = jsonMatch ? jsonMatch[0] : text.replace(/```json|```/g, '').trim();
       const data = JSON.parse(cleanJson);
+      
+      // Auto-populate all fields
+      setCustomKcal(Math.round(data.kcal).toString());
+      setCustomProtein(Math.round(data.protein).toString());
+      setCustomCarbs(Math.round(data.carbs).toString());
+      setCustomFat(Math.round(data.fat).toString());
+      setCustomFiber(Math.round(data.fiber).toString());
       
       setAiResult({
         kcal: Math.round(data.kcal),
@@ -85,10 +101,9 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         fiber: Math.round(data.fiber),
         grams: data.grams
       });
-      setCustomKcal(Math.round(data.kcal).toString());
     } catch (err) {
       console.error("Metabolic scan failure:", err);
-      setError("Analysis failed. Use manual entry.");
+      setError("AI analysis failed. Please enter data manually.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -96,16 +111,24 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
 
   const addCustomEntry = () => {
     const kcal = parseInt(customKcal);
-    if (!customName || (isNaN(kcal) && !aiResult)) return;
+    const prot = parseInt(customProtein) || 0;
+    const carb = parseInt(customCarbs) || 0;
+    const fat = parseInt(customFat) || 0;
+    const fiber = parseInt(customFiber) || 0;
+
+    if (!customName || isNaN(kcal)) {
+      setError("Name and Calories are mandatory.");
+      return;
+    }
 
     const currentCustom = log.meals.custom || [];
-    const entryMacros: Macros = aiResult || { 
-      kcal: kcal || 0, 
-      protein: 0, 
-      carbs: 0, 
-      fat: 0, 
-      fiber: 0, 
-      grams: 0 
+    const entryMacros: Macros = { 
+      kcal: kcal, 
+      protein: prot, 
+      carbs: carb, 
+      fat: fat, 
+      fiber: fiber, 
+      grams: aiResult?.grams || 0 
     };
 
     updateLog({ 
@@ -115,10 +138,16 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
       } 
     });
 
+    // Reset All
     setCustomName('');
     setCustomKcal('');
+    setCustomProtein('');
+    setCustomCarbs('');
+    setCustomFat('');
+    setCustomFiber('');
     setAiResult(null);
     setShowCustom(false);
+    setError(null);
   };
 
   const removeCustomEntry = (index: number) => {
@@ -239,7 +268,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
              <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-blue-400" />
-                  <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Metabolic Scan</h3>
+                  <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Manual Entry Scan</h3>
                 </div>
                 {!isOnline && <span className="text-[8px] font-black text-rose-500 uppercase flex items-center gap-1"><WifiOff size={10}/> Offline</span>}
              </div>
@@ -251,51 +280,32 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                </div>
              )}
 
-             <input 
-               placeholder="Identify Food Item..." 
-               className="w-full bg-slate-800/50 border border-white/5 rounded-2xl px-6 py-5 font-black text-white focus:border-blue-500/50 transition-all placeholder:text-slate-600" 
-               value={customName} 
-               onChange={e => { setCustomName(e.target.value); setError(null); }} 
-             />
-             
-             <div className="grid grid-cols-2 gap-4">
-               <div className="relative">
-                 <input 
-                   placeholder="Kcal" 
-                   type="number" 
-                   className="w-full bg-slate-800/50 border border-white/5 rounded-2xl px-6 py-5 font-black text-white focus:border-blue-500/50 transition-all placeholder:text-slate-600" 
-                   value={customKcal} 
-                   onChange={e => setCustomKcal(e.target.value)} 
-                 />
-                 <span className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-600 uppercase">kcal</span>
-               </div>
-               
-               <button 
-                onClick={analyzeWithAI} 
-                disabled={isAnalyzing} 
-                className={`rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${isOnline ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95' : 'bg-slate-800 text-slate-600'}`}
-               >
-                {isAnalyzing ? <Loader2 className="animate-spin" size={18} /> : isOnline ? <><Sparkles size={18}/> Analyze</> : <><WifiOff size={18}/> Offline</>}
-               </button>
+             <div className="space-y-4">
+                <div className="flex gap-2">
+                    <input 
+                    placeholder="Identify Food Item..." 
+                    className="flex-1 bg-slate-800/50 border border-white/5 rounded-2xl px-6 py-5 font-black text-white focus:border-blue-500/50 transition-all placeholder:text-slate-600" 
+                    value={customName} 
+                    onChange={e => { setCustomName(e.target.value); setError(null); }} 
+                    />
+                    <button 
+                        onClick={analyzeWithAI} 
+                        disabled={isAnalyzing} 
+                        className={`w-16 rounded-2xl flex items-center justify-center transition-all ${isOnline ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 active:scale-95' : 'bg-slate-800 text-slate-600'}`}
+                        title="AI Analyze"
+                    >
+                        {isAnalyzing ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18}/>}
+                    </button>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                    <ManualInput label="Calories" value={customKcal} setter={setCustomKcal} unit="kcal" />
+                    <ManualInput label="Protein" value={customProtein} setter={setCustomProtein} unit="g" color="border-blue-500/30" />
+                    <ManualInput label="Carbs" value={customCarbs} setter={setCustomCarbs} unit="g" color="border-emerald-500/30" />
+                    <ManualInput label="Fat" value={customFat} setter={setCustomFat} unit="g" color="border-amber-500/30" />
+                    <ManualInput label="Fiber" value={customFiber} setter={setCustomFiber} unit="g" color="border-indigo-500/30" className="col-span-2" />
+                </div>
              </div>
-
-             {aiResult && (
-               <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4 animate-in fade-in slide-in-from-top-2">
-                 <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Info size={12} className="text-blue-400" />
-                      <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Confidence: High</span>
-                    </div>
-                    <span className="text-[9px] font-black text-slate-500">~{aiResult.grams}g</span>
-                 </div>
-                 <div className="grid grid-cols-4 gap-2 text-center">
-                    <MacroStat label="Prot" val={aiResult.protein} />
-                    <MacroStat label="Carb" val={aiResult.carbs} />
-                    <MacroStat label="Fat" val={aiResult.fat} />
-                    <MacroStat label="Fib" val={aiResult.fiber} />
-                 </div>
-               </div>
-             )}
 
              <div className="flex gap-3 pt-2">
                <button 
@@ -315,6 +325,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
           </div>
         )}
 
+        {/* List of Custom Entries */}
         {log.meals.custom && log.meals.custom.length > 0 && (
           <div className="space-y-3">
              <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Added Scans</h4>
@@ -326,7 +337,9 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                     </div>
                     <div>
                       <h5 className="text-sm font-black text-white">{entry.name}</h5>
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{entry.macros.kcal} kcal scanned</span>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                        {entry.macros.kcal} kcal • P:{entry.macros.protein}g • C:{entry.macros.carbs}g
+                      </span>
                     </div>
                  </div>
                  <button 
@@ -344,11 +357,17 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   );
 };
 
-const MacroStat = ({ label, val }: { label: string; val: number }) => (
-  <div>
-    <span className="block text-[8px] font-black text-slate-500 uppercase">{label}</span>
-    <span className="text-xs font-black text-white">{Math.round(val)}g</span>
-  </div>
+const ManualInput = ({ label, value, setter, unit, color = "border-white/5", className = "" }: any) => (
+    <div className={`relative ${className}`}>
+        <input 
+            placeholder={label} 
+            type="number" 
+            className={`w-full bg-slate-800/50 border ${color} rounded-2xl px-4 py-4 font-black text-white focus:border-blue-500/50 transition-all placeholder:text-slate-600 text-sm`} 
+            value={value} 
+            onChange={e => setter(e.target.value)} 
+        />
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-600 uppercase">{unit}</span>
+    </div>
 );
 
 const MacroGoal: React.FC<{ label: string; val: number; target: number; unit: string; color: string; bg: string }> = ({ label, val, target, unit, color, bg }) => {
