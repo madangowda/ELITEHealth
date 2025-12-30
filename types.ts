@@ -13,6 +13,7 @@ export interface UserProfile {
   age: number;
   gender: 'male' | 'female';
   activityLevel: number; // 1.2 to 1.9 multiplier
+  workoutMode: 'standard' | 'homegym';
 }
 
 export interface MealOption extends Macros {
@@ -42,12 +43,22 @@ export interface Exercise {
   id: string;
   name: string;
   equipment: string;
+  machine?: string;
   sets: number;
   reps: string;
   kcalPerUnit: number;
   unit: 'set' | 'minute' | 'second';
   videoUrl?: string;
   formTips?: string[];
+}
+
+export interface CustomExerciseEntry {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  kcalBurn: number;
+  timestamp: number;
 }
 
 export interface WorkoutDay {
@@ -69,8 +80,22 @@ export interface DailyLog {
     custom?: CustomMealEntry[];
   };
   completedExercises: string[];
+  customExercises: CustomExerciseEntry[];
   walkingMinutes: number;
   waterIntakeMl: number;
+  takenSupplements: string[]; // New: IDs of supplements taken today
+}
+
+export interface Supplement {
+  id: string;
+  name: string;
+  brand: string;
+  dose: string;
+  instruction: string;
+  timing: 'morning' | 'night';
+  frequency: 'daily' | 'specific';
+  days?: number[]; // 0=Sun, 1=Mon, etc.
+  requiresFat?: boolean;
 }
 
 export interface WeightEntry {

@@ -1,15 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { DailyLog, WeightEntry, UserProfile, MealEntry } from '../types';
-import { getPastDays, calculateMacros, calculateDailyScore, calculateTDEE } from '../utils';
+import { getPastDays, calculateMacros, calculateDailyScore, calculateTDEE, calculateExerciseBurn } from '../utils';
 import { WORKOUT_PLAN, MEAL_PLAN } from '../constants';
 import DaySummary from './DaySummary';
-import { CalendarDays, ChevronRight, CheckCircle2, ChevronLeft, Dumbbell, Utensils, Zap } from 'lucide-react';
+import { CalendarDays, ChevronRight, CheckCircle2, ChevronLeft, Dumbbell, Utensils, Zap, Sparkles } from 'lucide-react';
 
 interface HistoryTrackerProps {
   logs: Record<string, DailyLog>;
   weights: WeightEntry[];
-  // Added profile prop to calculate TDEE for historical logs
   profile: UserProfile;
 }
 
@@ -17,13 +16,16 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const past30Days = useMemo(() => getPastDays(30), []);
 
+  // Fix: Ensure the default DailyLog object includes all required properties, specifically takenSupplements.
   const getLogForDate = (date: string): DailyLog => {
     return logs[date] || {
       date,
       meals: {},
       completedExercises: [],
+      customExercises: [],
       walkingMinutes: 0,
-      waterIntakeMl: 0
+      waterIntakeMl: 0,
+      takenSupplements: []
     };
   };
 
@@ -38,10 +40,8 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
     return WORKOUT_PLAN[adjustedIndex];
   };
 
-  // Screen View: Day Detail
   if (selectedDate) {
     const log = getLogForDate(selectedDate);
-    // Fixed: Calculate TDEE for the selected historical date
     const weightForDate = getWeightForDate(selectedDate) || 75;
     const tdeeForDate = calculateTDEE(profile, weightForDate);
 
@@ -62,8 +62,7 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
 
         <div className="bg-white rounded-[32px] p-2 shadow-sm border border-slate-100">
           <div className="p-4">
-            {/* Fixed: Passed calculated historical tdee to DaySummary */}
-            <DaySummary log={log} tdee={tdeeForDate} />
+            <DaySummary log={log} tdee={tdeeForDate} profile={profile} />
           </div>
         </div>
 
@@ -77,7 +76,6 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
     );
   }
 
-  // Screen View: Timeline List
   return (
     <div className="p-5 space-y-6 pb-24 animate-in fade-in duration-300">
       <div className="flex justify-between items-center">
@@ -96,22 +94,24 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
           const weight = getWeightForDate(date);
           const workout = getWorkoutInfo(date);
           const macros = calculateMacros(log);
+          const burn = calculateExerciseBurn(log, profile);
           
-          // Fixed: Calculated historical tdee for daily score
           const tdeeForDate = calculateTDEE(profile, weight || 75);
-          const score = calculateDailyScore(log, macros, tdeeForDate);
+          const score = calculateDailyScore(log, macros, tdeeForDate, profile);
           
           const d = new Date(date);
           const isToday = date === new Date().toISOString().split('T')[0];
           
-          // Data Extraction for Preview
           const completedExNames = workout.exercises
             .filter(ex => log.completedExercises.includes(ex.id))
             .map(ex => ex.name);
+          
+          if (log.customExercises) {
+            log.customExercises.forEach(ex => completedExNames.push(ex.name));
+          }
 
           const eatenFoodNames: string[] = [];
           MEAL_PLAN.forEach(cat => {
-            // Fix: Correctly access the meal entry ID from the log.meals object instead of casting to string
             const entry = log.meals[cat.id as keyof DailyLog['meals']] as MealEntry | undefined;
             const selectedId = entry?.id;
             const option = cat.options.find(o => o.id === selectedId);
@@ -131,7 +131,6 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
                 isToday ? 'border-blue-200 shadow-md ring-4 ring-blue-50/50' : 'border-slate-100 shadow-sm hover:border-slate-200'
               }`}
             >
-              {/* Top Row: Date & Score */}
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-3">
                   <div className={`w-11 h-11 rounded-2xl flex flex-col items-center justify-center shrink-0 ${
@@ -145,9 +144,11 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
                       <h4 className="font-black text-sm text-slate-800">{isToday ? 'Today' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</h4>
                       {score >= 8 && <CheckCircle2 size={14} className="text-emerald-500" />}
                     </div>
-                    <div className="flex gap-2 items-center mt-0.5">
-                       <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">{Math.round(macros.kcal)} kcal</span>
-                       {weight && <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter">• {weight} kg</span>}
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 items-center mt-1">
+                       <span className="text-[9px] font-black text-blue-600 uppercase tracking-tighter">In: {Math.round(macros.kcal)}</span>
+                       <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Burn: {burn}</span>
+                       <span className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">Net: {Math.round(macros.kcal - burn)}</span>
+                       {weight && <span className="text-[9px] font-black text-amber-600 uppercase tracking-tighter">• {weight}kg</span>}
                     </div>
                   </div>
                 </div>
@@ -162,10 +163,8 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
                 </div>
               </div>
 
-              {/* Data Preview Section */}
               {hasData && (
                 <div className="space-y-3 pt-3 border-t border-slate-50">
-                  {/* Exercises Preview */}
                   {completedExNames.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       <div className="w-5 h-5 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center shrink-0">
@@ -179,7 +178,6 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
                     </div>
                   )}
 
-                  {/* Food Preview */}
                   {eatenFoodNames.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       <div className="w-5 h-5 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center shrink-0">
@@ -193,14 +191,13 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
                     </div>
                   )}
 
-                  {/* Cardio/Walking Preview */}
                   {log.walkingMinutes > 0 && (
                     <div className="flex items-center gap-1.5">
                       <div className="w-5 h-5 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center shrink-0">
                         <Zap size={10} strokeWidth={3} />
                       </div>
                       <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest">
-                        {log.walkingMinutes} Min Active Cardio
+                        {log.walkingMinutes} Min Fast Walking
                       </span>
                     </div>
                   )}

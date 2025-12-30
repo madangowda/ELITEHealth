@@ -1,25 +1,27 @@
 
 import React from 'react';
-import { DailyLog, Macros, MealEntry } from '../types';
+import { DailyLog, Macros, MealEntry, UserProfile } from '../types';
 import { calculateMacros, calculateExerciseBurn, calculateDailyScore } from '../utils';
-import { DAILY_TARGETS, MEAL_PLAN, WORKOUT_PLAN } from '../constants';
-import { CheckCircle2, Flame, Droplets, Footprints, Utensils, Dumbbell, Zap, Repeat, Layers } from 'lucide-react';
+import { DAILY_TARGETS, MEAL_PLAN, WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN } from '../constants';
+import { CheckCircle2, Flame, Droplets, Footprints, Utensils, Dumbbell, Zap, Repeat, Layers, Sparkles } from 'lucide-react';
 
 interface DaySummaryProps {
   log: DailyLog;
   tdee: number;
+  profile: UserProfile;
 }
 
-const DaySummary: React.FC<DaySummaryProps> = ({ log, tdee }) => {
+const DaySummary: React.FC<DaySummaryProps> = ({ log, tdee, profile }) => {
   const macros = calculateMacros(log);
-  const burn = calculateExerciseBurn(log);
-  const score = calculateDailyScore(log, macros, tdee);
+  const burn = calculateExerciseBurn(log, profile);
+  const score = calculateDailyScore(log, macros, tdee, profile);
   const dayName = new Date(log.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   
   const d = new Date(log.date);
   const dayIndex = d.getDay();
   const adjustedIndex = (dayIndex + 6) % 7;
-  const workout = WORKOUT_PLAN[adjustedIndex];
+  const plan = profile.workoutMode === 'homegym' ? HOME_GYM_WORKOUT_PLAN : WORKOUT_PLAN;
+  const workout = plan[adjustedIndex];
 
   return (
     <div className="space-y-6 pb-12">
@@ -63,6 +65,7 @@ const DaySummary: React.FC<DaySummaryProps> = ({ log, tdee }) => {
         <SummaryMacro label="Fiber" val={macros.fiber} target={DAILY_TARGETS.fiber} unit="g" color="text-indigo-600" bg="bg-indigo-50" />
       </div>
 
+      {/* Diet Audit */}
       <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <Utensils size={16} className="text-blue-500" />
@@ -108,6 +111,61 @@ const DaySummary: React.FC<DaySummaryProps> = ({ log, tdee }) => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Exercise Audit */}
+      <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Dumbbell size={16} className="text-orange-500" />
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Workout Protocol</h3>
+        </div>
+        <div className="space-y-3">
+          {workout.exercises.map(ex => {
+            const completed = log.completedExercises.includes(ex.id);
+            if (!completed) return null;
+            const kcalBurn = Math.round(ex.kcalPerUnit * (ex.unit === 'second' ? 40 : 1) * ex.sets);
+            
+            return (
+              <div key={ex.id} className="flex justify-between items-center py-3 border-b border-slate-50 last:border-0">
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{ex.equipment}</span>
+                  <span className="text-xs font-bold text-slate-800">{ex.name}</span>
+                  <span className="text-[10px] font-medium text-slate-500 mt-0.5">{ex.sets} Sets × {ex.reps}</span>
+                </div>
+                <div className="text-right">
+                  <span className="block text-xs font-black text-orange-600">-{kcalBurn} kcal</span>
+                </div>
+              </div>
+            );
+          })}
+          {log.customExercises?.map((ex) => (
+            <div key={ex.id} className="flex justify-between items-center py-3 border-b border-slate-50 last:border-0">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1">
+                  <Sparkles size={8} className="text-blue-500" />
+                  <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest italic">AI / Custom</span>
+                </div>
+                <span className="text-xs font-bold text-slate-800">{ex.name}</span>
+                <span className="text-[10px] font-medium text-slate-500 mt-0.5">{ex.sets} × {ex.reps}</span>
+              </div>
+              <div className="text-right">
+                <span className="block text-xs font-black text-orange-600">-{ex.kcalBurn} kcal</span>
+              </div>
+            </div>
+          ))}
+          {log.walkingMinutes > 0 && (
+            <div className="flex justify-between items-center py-3 border-t border-slate-50 mt-2">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Cardio</span>
+                <span className="text-xs font-bold text-slate-800">Fast Walking</span>
+                <span className="text-[10px] font-medium text-slate-500 mt-0.5">{log.walkingMinutes} Minutes</span>
+              </div>
+              <div className="text-right">
+                <span className="block text-xs font-black text-orange-600">-{log.walkingMinutes * 5} kcal</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { DailyLog, Macros, WeightEntry, UserProfile } from '../types';
-import { calculateTDEE, calculateBMR } from '../utils';
+import { calculateTDEE, calculateBMR, getScheduledSupplements, getISTDateInfo } from '../utils';
 import DaySummary from './DaySummary';
-import { Zap, Flame, Footprints, Droplets, Activity, ClipboardList, ChevronLeft, Sparkles, TrendingDown, ChevronRight, ShieldCheck, WifiOff, HardDrive, Wifi } from 'lucide-react';
+import { Zap, Flame, Footprints, Droplets, Activity, ClipboardList, ChevronLeft, Sparkles, TrendingDown, ChevronRight, ShieldCheck, WifiOff, HardDrive, Wifi, CheckCircle2, Utensils, Dumbbell, ShieldAlert, AlertTriangle, Clock, Target, Info, Pill } from 'lucide-react';
 
 interface DashboardProps {
   log: DailyLog;
@@ -35,7 +35,28 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const currentWeight = log.weight || (weights.length > 0 ? weights[weights.length - 1].weight : 92);
   const bmr = useMemo(() => calculateBMR(profile, currentWeight), [profile, currentWeight]);
-  const deficit = 1950 - Math.round(macros.kcal - burn);
+  const net = Math.round(macros.kcal - burn);
+
+  const scheduledSupps = getScheduledSupplements(log.date);
+  const takenSuppsCount = (log.takenSupplements || []).length;
+  const adherenceColor = takenSuppsCount === scheduledSupps.length && scheduledSupps.length > 0 ? 'text-emerald-400' : takenSuppsCount > 0 ? 'text-amber-400' : 'text-slate-500';
+
+  // Dynamic Reminders based on Indian Time
+  const ist = getISTDateInfo();
+  const dynamicAdvice = useMemo(() => {
+    const isMorning = ist.hour >= 7 && ist.hour < 11;
+    const isNight = ist.hour >= 20;
+    
+    if (isMorning) {
+      if (ist.day === 0) return "Today is SuperD3 day – take after a fat-rich breakfast. No empty stomach.";
+      if (ist.day === 1 || ist.day === 4) return "Himalayan Organics B12 scheduled. Time for morning supplements.";
+      return "Morning protocol active: Omega-3 and Folate after breakfast.";
+    }
+    if (isNight) {
+      return "Time for night stack: Tata 1mg Magnesium & Ashwagandha for deep recovery.";
+    }
+    return `Metabolic precision stable at ${net} kcal net. All protocol rules must be strictly followed.`;
+  }, [ist, net]);
 
   if (showTodaySummary) {
     return (
@@ -46,14 +67,14 @@ const Dashboard: React.FC<DashboardProps> = ({
           </button>
           <h1 className="text-xl font-black tracking-tight">Protocol Audit</h1>
         </div>
-        <DaySummary log={log} tdee={1950} />
+        <DaySummary log={log} tdee={1950} profile={profile} />
       </div>
     );
   }
 
   return (
     <div className="p-6 space-y-8 animate-in fade-in duration-700 pb-32">
-      {/* Header with Vault Status */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -64,7 +85,7 @@ const Dashboard: React.FC<DashboardProps> = ({
              {isOnline ? (
                <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 rounded-full border border-blue-500/20">
                  <Wifi size={10} className="text-blue-400" />
-                 <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">AI Sync Ready</span>
+                 <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">AI Sync</span>
                </div>
              ) : (
                <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 rounded-full border border-amber-500/20">
@@ -81,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Main HUD */}
+      {/* Main Metabolic HUD */}
       <div className="dark-hud rounded-[40px] p-8 shadow-2xl relative overflow-hidden border border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full -mr-32 -mt-32 blur-3xl" />
         <div className="relative z-10 space-y-8">
@@ -94,8 +115,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {Math.round(bmr)} <span className="text-lg font-medium opacity-30 tracking-normal ml-1">BMR</span>
               </div>
             </div>
-            <div className={`text-xl font-black ${deficit > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {deficit > 0 ? `+${deficit}` : deficit} <span className="text-[8px] block text-right opacity-50 uppercase">Delta</span>
+            <div className={`text-xl font-black ${1950 - net > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {1950 - net > 0 ? `+${1950 - net}` : 1950 - net} <span className="text-[8px] block text-right opacity-50 uppercase">Delta</span>
             </div>
           </div>
 
@@ -110,6 +131,68 @@ const Dashboard: React.FC<DashboardProps> = ({
                 style={{ width: `${Math.min(100, (macros.kcal / 1950) * 100)}%` }} 
               />
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Supplement Shield Status Card */}
+      <div className="stealth-card rounded-[32px] p-6 border-indigo-500/20 shadow-xl bg-gradient-to-br from-indigo-950/40 to-slate-900/40">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center">
+              <Pill size={24} />
+            </div>
+            <div>
+              <h4 className="text-base font-black text-white leading-none">Supplement Shield</h4>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+                Adherence: <span className={adherenceColor}>{takenSuppsCount} / {scheduledSupps.length} Taken</span>
+              </p>
+            </div>
+          </div>
+          {takenSuppsCount === scheduledSupps.length && scheduledSupps.length > 0 && (
+            <div className="w-10 h-10 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center">
+              <CheckCircle2 size={20} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Integrated Autonomous Intelligence */}
+      <div className="bg-[#1e1b4b] rounded-[40px] border border-indigo-500/20 shadow-2xl shadow-indigo-500/10 overflow-hidden">
+        <div className="p-8 border-b border-white/5 flex items-start gap-5">
+          <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-600/20">
+            <Sparkles size={24} />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em]">Autonomous Intelligence</h4>
+            <p className="text-xs text-slate-300 font-bold leading-relaxed">
+              {dynamicAdvice}
+            </p>
+          </div>
+        </div>
+
+        <div className="p-8 grid grid-cols-1 gap-4">
+          <div className="flex items-center gap-3 mb-2">
+             <ShieldAlert size={14} className="text-rose-500" />
+             <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Protocol Directives</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { rule: "Fruit OR Salad", detail: "Never both", icon: <Utensils size={14}/>, color: "text-blue-400" },
+              { rule: "Snack Slots", detail: "Strict timing", icon: <Clock size={14}/>, color: "text-emerald-400" },
+              { rule: "3 tsp Oil Max", detail: "Daily limit", icon: <Flame size={14}/>, color: "text-amber-400" },
+              { rule: "Goat Meat", detail: "Max 2x / Week", icon: <AlertTriangle size={14}/>, color: "text-rose-400" },
+              { rule: "Zero Juice", detail: "Whole fruit only", icon: <Droplets size={14}/>, color: "text-indigo-400" },
+              { rule: "Late Carbs", detail: "Strict black-out", icon: <Zap size={14}/>, color: "text-amber-400" },
+            ].map((item, idx) => (
+              <div key={idx} className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className={item.color}>{item.icon}</div>
+                <div>
+                  <span className="block text-[10px] font-black text-slate-100 uppercase tracking-tight leading-none mb-1">{item.rule}</span>
+                  <span className="block text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">{item.detail}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -133,38 +216,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Burned kcal</span>
             <div className="text-2xl font-black text-white">{burn}</div>
           </div>
-        </div>
-      </div>
-
-      {/* Water Tracking */}
-      <button 
-        onClick={() => updateLog({ waterIntakeMl: (log.waterIntakeMl || 0) + 250 })}
-        className="w-full stealth-card rounded-[32px] p-6 flex items-center justify-between active:scale-95 transition-all"
-      >
-        <div className="flex items-center gap-5">
-          <div className="w-12 h-12 bg-cyan-500/10 text-cyan-400 rounded-2xl flex items-center justify-center">
-            <Droplets size={24} />
-          </div>
-          <div className="text-left">
-            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Hydration</h4>
-            <p className="text-2xl font-black text-white leading-none mt-1">{(log.waterIntakeMl || 0) / 1000}<span className="text-xs opacity-30 ml-1">L</span></p>
-          </div>
-        </div>
-        <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-slate-500">
-           <ChevronRight size={20} />
-        </div>
-      </button>
-
-      {/* Intelligence */}
-      <div className="bg-white/5 rounded-[32px] p-6 border border-white/5 flex items-start gap-5">
-        <div className="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-2xl flex items-center justify-center shrink-0">
-          <Sparkles size={24} />
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Autonomous Advice</h4>
-          <p className="text-xs text-slate-400 font-bold leading-relaxed">
-            Metabolic precision is stable. App is running from the device vault. AI features require an active data connection.
-          </p>
         </div>
       </div>
 

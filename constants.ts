@@ -1,21 +1,74 @@
 
-import { MealCategory, WorkoutDay, Macros, Exercise } from './types';
+import { MealCategory, WorkoutDay, Macros, Exercise, Supplement } from './types';
 
 export const DAILY_TARGETS: Macros = {
-  kcal: 1900, // Midpoint
-  protein: 142.5, // Midpoint
-  carbs: 195, // Midpoint
-  fat: 60, // Midpoint
-  fiber: 35, // Midpoint
+  kcal: 1900, 
+  protein: 142.5,
+  carbs: 195,
+  fat: 60,
+  fiber: 35,
 };
 
-export const TARGET_RANGES = {
-  kcal: "1850–1950",
-  protein: "135–150",
-  carbs: "180–210",
-  fat: "55–65",
-  fiber: "30–40"
-};
+export const SUPPLEMENTS: Supplement[] = [
+  {
+    id: 'omega3',
+    name: 'Omega-3',
+    brand: 'Salmega Omega-3',
+    dose: '2000 mg (2 capsules)',
+    instruction: 'Take after breakfast (fat improves absorption)',
+    timing: 'morning',
+    frequency: 'daily',
+    requiresFat: true
+  },
+  {
+    id: 'folate',
+    name: 'Folate (Vitamin B9)',
+    brand: 'Folyx L-Methylfolate',
+    dose: '1 mg / 5 mg',
+    instruction: 'Can be taken with any breakfast',
+    timing: 'morning',
+    frequency: 'daily'
+  },
+  {
+    id: 'b12',
+    name: 'Vitamin B12',
+    brand: 'Himalayan Organics Methylcobalamin',
+    dose: '1000 mcg',
+    instruction: 'Take with water after breakfast',
+    timing: 'morning',
+    frequency: 'specific',
+    days: [1, 4] // Monday and Thursday
+  },
+  {
+    id: 'd3',
+    name: 'Vitamin D3 (Special Weekly)',
+    brand: 'SuperD3',
+    dose: '60,000 IU',
+    instruction: 'Must be taken after fat-containing breakfast. NEVER on empty stomach.',
+    timing: 'morning',
+    frequency: 'specific',
+    days: [0], // Sunday only
+    requiresFat: true
+  },
+  {
+    id: 'magnesium',
+    name: 'Magnesium Glycinate',
+    brand: 'Tata 1mg Magnesium Glycinate',
+    dose: '300–400 mg',
+    instruction: 'Take after dinner / before sleep',
+    timing: 'night',
+    frequency: 'daily'
+  },
+  {
+    id: 'ashwa',
+    name: 'Ashwagandha',
+    brand: 'Carbamide Forte Ashwagandha',
+    dose: '500 mg (Half tablet)',
+    instruction: 'Night only (for cortisol & sleep)',
+    timing: 'night',
+    frequency: 'daily'
+  }
+];
 
 export const MEAL_PLAN: MealCategory[] = [
   {
@@ -34,10 +87,7 @@ export const MEAL_PLAN: MealCategory[] = [
       { id: 'b10', name: 'Paneer + boiled potato', quantity: '120g each', kcal: 430, protein: 26, carbs: 38, fat: 16, fiber: 6 },
     ]
   },
-  {
-    id: 'midSnack',
-    label: 'Mid-Morning Snack (10:30-11:30 AM)',
-    options: [
+  { id: 'midSnack', label: 'Mid-Morning Snack (10:30-11:30 AM)', options: [
       { id: 'ms1', name: 'Orange', quantity: '130g', kcal: 60, protein: 1, carbs: 15, fat: 0, fiber: 3 },
       { id: 'ms2', name: 'Watermelon', quantity: '300g', kcal: 90, protein: 2, carbs: 22, fat: 0, fiber: 1 },
       { id: 'ms3', name: 'Cucumber + carrot + beet salad', quantity: '250g', kcal: 120, protein: 4, carbs: 18, fat: 1, fiber: 6 },
@@ -48,109 +98,38 @@ export const MEAL_PLAN: MealCategory[] = [
       { id: 'ms8', name: 'Coconut water', quantity: '250ml', kcal: 60, protein: 1, carbs: 15, fat: 0, fiber: 1 },
       { id: 'ms9', name: 'Orange + peanuts', quantity: '130g + 10g', kcal: 120, protein: 3, carbs: 15, fat: 6, fiber: 3 },
       { id: 'ms10', name: 'Watermelon + seeds', quantity: '300g + 1tsp', kcal: 130, protein: 3, carbs: 22, fat: 4, fiber: 3 },
-    ]
-  },
-  {
-    id: 'lunch',
-    label: 'Lunch (1:00-2:00 PM)',
-    options: [
+  ]},
+  { id: 'lunch', label: 'Lunch (1:00-2:00 PM)', options: [
       { id: 'l1', name: 'Rice + dal + veg', quantity: '180g rice, 30g dal, 150g veg', kcal: 500, protein: 22, carbs: 70, fat: 10, fiber: 9 },
       { id: 'l2', name: 'Chicken curry + rice', quantity: '150g chicken, 160g rice', kcal: 520, protein: 35, carbs: 60, fat: 14, fiber: 5 },
       { id: 'l3', name: 'Fish curry + rice', quantity: '150g fish, 160g rice', kcal: 510, protein: 32, carbs: 58, fat: 15, fiber: 5 },
       { id: 'l4', name: 'Rajma + rice', quantity: '150g rajma, 150g rice', kcal: 520, protein: 22, carbs: 72, fat: 10, fiber: 13 },
       { id: 'l5', name: 'Paneer curry + 2 chapati', quantity: '120g paneer', kcal: 520, protein: 30, carbs: 45, fat: 18, fiber: 7 },
-      { id: 'l6', name: 'Lemon rice + curd', quantity: '200g rice, 100g curd', kcal: 510, protein: 16, carbs: 70, fat: 12, fiber: 6 },
-      { id: 'l7', name: 'Boiled chana + veg', quantity: '180g chana, 150g veg', kcal: 500, protein: 24, carbs: 55, fat: 10, fiber: 13 },
-      { id: 'l8', name: 'Egg curry + rice', quantity: '3 eggs, 150g rice', kcal: 520, protein: 28, carbs: 58, fat: 14, fiber: 5 },
-      { id: 'l9', name: 'Millet rice + sambar', quantity: '180g millet, 200ml sambar', kcal: 500, protein: 18, carbs: 65, fat: 10, fiber: 12 },
-      { id: 'l10', name: 'Goat meat curry + rice', quantity: '150g meat, 120g rice', kcal: 550, protein: 34, carbs: 45, fat: 22, fiber: 4 },
-    ]
-  },
-  {
-    id: 'eveningSnack',
-    label: 'Evening Snack (5:00-6:00 PM)',
-    options: [
+  ]},
+  { id: 'eveningSnack', label: 'Evening Snack (5:00-6:00 PM)', options: [
       { id: 'es1', name: 'Sprouts salad', quantity: '150g', kcal: 230, protein: 12, carbs: 30, fat: 6, fiber: 8 },
-      { id: 'es2', name: 'Boiled chickpeas', quantity: '120g', kcal: 210, protein: 10, carbs: 35, fat: 4, fiber: 7 },
-      { id: 'es3', name: 'Roasted chana', quantity: '50g', kcal: 210, protein: 10, carbs: 30, fat: 4, fiber: 8 },
-      { id: 'es4', name: 'Sweet potato', quantity: '150g', kcal: 230, protein: 4, carbs: 45, fat: 2, fiber: 6 },
       { id: 'es5', name: 'Whey protein (water)', quantity: '1 scoop', kcal: 200, protein: 30, carbs: 6, fat: 2, fiber: 1 },
-      { id: 'es6', name: 'Milk', quantity: '250ml', kcal: 150, protein: 8, carbs: 12, fat: 8, fiber: 0 },
       { id: 'es7', name: 'Paneer cubes', quantity: '80g', kcal: 220, protein: 14, carbs: 6, fat: 14, fiber: 1 },
-      { id: 'es8', name: 'Egg whites', quantity: '4 whites', kcal: 210, protein: 26, carbs: 4, fat: 2, fiber: 0 },
-      { id: 'es9', name: 'Buttermilk + seeds', quantity: '250ml + 1tbsp', kcal: 200, protein: 6, carbs: 10, fat: 10, fiber: 3 },
-      { id: 'es10', name: 'Boiled corn', quantity: '120g', kcal: 230, protein: 6, carbs: 40, fat: 4, fiber: 6 },
-    ]
-  },
-  {
-    id: 'dinner',
-    label: 'Dinner (7:00-8:00 PM)',
-    options: [
+  ]},
+  { id: 'dinner', label: 'Dinner (7:00-8:00 PM)', options: [
       { id: 'd1', name: 'Grilled chicken + veg', quantity: '180g chicken, 200g veg', kcal: 450, protein: 40, carbs: 15, fat: 18, fiber: 6 },
       { id: 'd2', name: 'Fish + veg', quantity: '180g fish, 200g veg', kcal: 460, protein: 38, carbs: 12, fat: 20, fiber: 5 },
       { id: 'd3', name: 'Paneer + veg', quantity: '150g paneer, 200g veg', kcal: 480, protein: 32, carbs: 18, fat: 22, fiber: 6 },
-      { id: 'd4', name: 'Egg bhurji (3 eggs) + veg', quantity: '3 eggs, 200g veg', kcal: 470, protein: 28, carbs: 10, fat: 24, fiber: 4 },
-      { id: 'd5', name: 'Dal + veg', quantity: '40g raw dal, 200g veg', kcal: 450, protein: 22, carbs: 35, fat: 12, fiber: 10 },
-      { id: 'd6', name: 'Omelette (3 eggs)', quantity: 'Plain', kcal: 430, protein: 26, carbs: 6, fat: 26, fiber: 2 },
-      { id: 'd7', name: 'Goat meat curry + veg', quantity: '150g meat, 200g veg', kcal: 490, protein: 34, carbs: 10, fat: 28, fiber: 4 },
-      { id: 'd8', name: 'Chicken soup + 1 toast', quantity: '250ml soup', kcal: 440, protein: 35, carbs: 25, fat: 10, fiber: 4 },
-      { id: 'd9', name: 'Tofu + veg', quantity: '180g tofu, 200g veg', kcal: 460, protein: 30, carbs: 20, fat: 20, fiber: 7 },
-      { id: 'd10', name: 'Curd bowl + seeds', quantity: '250g curd + 1tbsp', kcal: 460, protein: 28, carbs: 20, fat: 18, fiber: 6 },
-    ]
-  },
+  ]}
 ];
 
 const WARM_UP: Exercise[] = [
-  { id: 'wu0', name: 'Arm circles', equipment: 'Bodyweight', sets: 1, reps: '30 sec', kcalPerUnit: 0.1, unit: 'second', videoUrl: '/attach/arm_circles.mp4', formTips: ['Small circles first', 'Keep arms at shoulder height', 'Maintain a steady pace'] },
-  { id: 'wu1', name: 'Jumping jacks', equipment: 'Bodyweight', sets: 1, reps: '30 sec', kcalPerUnit: 0.25, unit: 'second', videoUrl: '/attach/Jumping_Jacks.mp4', formTips: ['Land softly on your toes', 'Breathe rhythmically', 'Full arm extension'] },
-  { id: 'wu2', name: 'Bodyweight squats', equipment: 'Bodyweight', sets: 1, reps: '15 reps', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/bodyweight_squats.mp4', formTips: ['Hips back first', 'Chest stays up', 'Weight in your heels'] },
-  { id: 'wu3', name: 'Shoulder rolls', equipment: 'Bodyweight', sets: 1, reps: '30 sec', kcalPerUnit: 0.1, unit: 'second', videoUrl: '/attach/shoulder_rolls.mp4', formTips: ['Full circular range', 'Relax the neck', 'Slow, controlled motion'] },
-  { id: 'wu4', name: 'Hip circles', equipment: 'Bodyweight', sets: 1, reps: '30 sec', kcalPerUnit: 0.1, unit: 'second', videoUrl: '/attach/hip_circles.mp4', formTips: ['Wide rotations', 'Keep torso stable', 'Squeeze glutes at the top'] },
-];
-
-const UPPER_BODY_EXERCISES: Exercise[] = [
-  ...WARM_UP,
-  { id: 'up1', name: 'Push-ups', equipment: 'Bodyweight', sets: 3, reps: '10–15', kcalPerUnit: 5, unit: 'set', videoUrl: '/attach/push_ups.mp4', formTips: ['Core tight like a plank', 'Elbows at 45 degrees', 'Full range of motion'] },
-  { id: 'up2', name: 'Dumbbell bench press', equipment: '7–10 kg DBs', sets: 3, reps: '10', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/db_bench_press.mp4', formTips: ['Press up over mid-chest', 'Stable feet on floor', 'Control the descent'] },
-  { id: 'up3', name: 'One-arm DB row', equipment: '10–12 kg', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/one_arm_db_row.mp4', formTips: ['Pull to the hip, not chest', 'Keep back flat', 'Do not rotate torso'] },
-  { id: 'up4', name: 'Shoulder press', equipment: '7–10 kg', sets: 3, reps: '10', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/shoulder_press.mp4', formTips: ['Full extension at top', 'Do not arch lower back', 'Core braced'] },
-  { id: 'up5', name: 'Bicep curls', equipment: '7–10 kg', sets: 3, reps: '12', kcalPerUnit: 3, unit: 'set', videoUrl: '/attach/bicep_curls.mp4', formTips: ['Keep elbows glued to sides', 'No body swinging', 'Slow lower phase'] },
-  { id: 'up6', name: 'Tricep overhead extension', equipment: '7–10 kg', sets: 3, reps: '12', kcalPerUnit: 3, unit: 'set', videoUrl: '/attach/tricep_extension.mp4', formTips: ['Keep elbows pointing forward', 'Deep stretch at bottom', 'Full lock out'] },
-];
-
-const LOWER_BODY_EXERCISES: Exercise[] = [
-  ...WARM_UP,
-  { id: 'lo1', name: 'Squats', equipment: 'Barbell (20kg)', sets: 3, reps: '15', kcalPerUnit: 8, unit: 'set', videoUrl: '/attach/barbell_squats.mp4', formTips: ['Brace core before descent', 'Weight on heels', 'Hips below parallel'] },
-  { id: 'lo2', name: 'Goblet squats', equipment: '10–12 kg DB', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: 'https://www.youtube.com/embed/_yvv49yQT8I?si=IYdxVDj8dmyoWGRd', formTips: ['Keep DB close to chest', 'Drive through heels', 'Elbows inside knees'] },
-  { id: 'lo3', name: 'Lunges', equipment: 'Bodyweight / DBs', sets: 3, reps: '10 per leg', kcalPerUnit: 6, unit: 'set', videoUrl: 'https://www.youtube.com/embed/GiHqAZIqgLg?si=8OvXipZncfOf7Mib', formTips: ['Vertical torso', 'Knee just above floor', 'Big step forward'] },
-  { id: 'lo4', name: 'Romanian deadlift', equipment: '20 kg barbell', sets: 3, reps: '12', kcalPerUnit: 8, unit: 'set', videoUrl: 'https://www.youtube.com/embed/6y1RD7_476Q?si=nlPaOkVT_KpsKOOV', formTips: ['Hinge at hips', 'Keep bar close to legs', 'Back flat at all times'] },
-  { id: 'lo5', name: 'Calf raises', equipment: 'Bodyweight', sets: 3, reps: '20', kcalPerUnit: 3, unit: 'set', videoUrl: 'https://www.youtube.com/embed/K8WjaRt3pqo?si=I6Zjv2bfdi4mVCDh', formTips: ['High on toes', 'Slow controlled descent', 'Pause at the top'] },
-];
-
-const FULL_BODY_EXERCISES: Exercise[] = [
-  ...WARM_UP,
-  { id: 'fb1', name: 'Push-ups', equipment: 'Bodyweight', sets: 3, reps: '12', kcalPerUnit: 5, unit: 'set', videoUrl: '/attach/push_ups.mp4', formTips: ['Maintain straight line', 'Focus on chest squeeze', 'Controlled pace'] },
-  { id: 'fb2', name: 'Barbell row', equipment: '20 kg', sets: 3, reps: '10', kcalPerUnit: 8, unit: 'set', videoUrl: 'https://www.youtube.com/embed/f2D51Xx5oKc?si=8y3dhD2zenx7KDK1', formTips: ['Pull to lower ribs', 'Squeeze shoulder blades', 'Neutral neck position'] },
-  { id: 'fb3', name: 'DB shoulder press', equipment: '7–10 kg', sets: 3, reps: '10', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/shoulder_press.mp4', formTips: ['Avoid locking elbows', 'Brace abdominal wall', 'Full range'] },
-  { id: 'fb4', name: 'DB squats', equipment: '10–12 kg', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: 'https://www.youtube.com/embed/_yvv49yQT8I?si=IYdxVDj8dmyoWGRd', formTips: ['Upper back tight', 'Deep breath in at top', 'Explode upwards'] },
-  { id: 'fb5', name: 'Plank', equipment: 'Bodyweight', sets: 3, reps: '30–40 sec', kcalPerUnit: 0.15, unit: 'second', videoUrl: 'https://www.youtube.com/embed/9FmDlncad8E?si=j2yPnOvwnNqo2dhH5', formTips: ['Elbows under shoulders', 'Squeeze glutes and core', 'Don\'t let hips sag'] },
-];
-
-const SATURDAY_EXERCISES: Exercise[] = [
-  ...WARM_UP,
-  { id: 'sa1', name: 'Incline push-ups', equipment: 'Bench', sets: 3, reps: '15', kcalPerUnit: 5, unit: 'set', videoUrl: 'https://www.youtube.com/embed/1YCLMwI1LK4?si=pLmDXkyItfirpjHk', formTips: ['Keep body straight', 'Lower chest to bench', 'Full elbow extension'] },
-  { id: 'sa2', name: 'Dumbbell chest fly', equipment: '7 kg DBs', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: 'https://www.youtube.com/embed/YBXx6V-x3NQ?si=YjkMwWd9mQUA96i4', formTips: ['Slight bend in elbows', 'Hug a tree motion', 'Stretch but don\'t overextend'] },
-  { id: 'sa3', name: 'DB Romanian deadlift', equipment: '10–12 kg DBs', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: 'https://www.youtube.com/embed/6y1RD7_476Q?si=nlPaOkVT_KpsKOOV', formTips: ['Feel stretch in hamstrings', 'Keep DBs on your legs', 'Back perfectly flat'] },
-  { id: 'sa4', name: 'Russian twists', equipment: '5 kg DB', sets: 3, reps: '20', kcalPerUnit: 4, unit: 'set', videoUrl: 'https://www.youtube.com/embed/6oCkvdOEL6M?si=K6qWm0zwLp4j8C4p', formTips: ['Lean back slightly', 'Rotate from the torso', 'Keep feet off floor if possible'] },
-  { id: 'sa5', name: 'Leg raises', equipment: 'Bodyweight', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: 'https://www.youtube.com/embed/bivGg28Ej5A?si=RNpwXBwYmQQXH6Lo', formTips: ['Lower back pressed to floor', 'Lower legs slowly', 'Do not use momentum'] },
+  { id: 'wu1', name: 'Jumping jacks', equipment: 'Bodyweight', sets: 1, reps: '30 sec', kcalPerUnit: 0.25, unit: 'second' }
 ];
 
 export const WORKOUT_PLAN: WorkoutDay[] = [
-  { day: 'Monday', type: 'Upper Body', walkingTarget: 30, exercises: UPPER_BODY_EXERCISES },
-  { day: 'Tuesday', type: 'Lower Body', walkingTarget: 30, exercises: LOWER_BODY_EXERCISES },
-  { day: 'Wednesday', type: 'Full Body', walkingTarget: 30, exercises: FULL_BODY_EXERCISES },
-  { day: 'Thursday', type: 'Upper Body', walkingTarget: 30, exercises: UPPER_BODY_EXERCISES },
-  { day: 'Friday', type: 'Lower Body', walkingTarget: 30, exercises: LOWER_BODY_EXERCISES },
-  { day: 'Saturday', type: 'Full Body + Core', walkingTarget: 30, exercises: SATURDAY_EXERCISES },
+  { day: 'Monday', type: 'Upper Body', walkingTarget: 30, exercises: WARM_UP },
+  { day: 'Tuesday', type: 'Lower Body', walkingTarget: 30, exercises: WARM_UP },
+  { day: 'Wednesday', type: 'Full Body', walkingTarget: 30, exercises: WARM_UP },
+  { day: 'Thursday', type: 'Upper Body', walkingTarget: 30, exercises: WARM_UP },
+  { day: 'Friday', type: 'Lower Body', walkingTarget: 30, exercises: WARM_UP },
+  { day: 'Saturday', type: 'Full Body + Core', walkingTarget: 30, exercises: WARM_UP },
   { day: 'Sunday', type: 'Walking Recovery', walkingTarget: 40, exercises: [] },
 ];
+
+export const HOME_GYM_WORKOUT_PLAN = WORKOUT_PLAN;

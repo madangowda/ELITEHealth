@@ -1,8 +1,20 @@
 
-import { DailyLog, WeightEntry, Macros, AppNotification, UserProfile, MealEntry } from './types';
-import { MEAL_PLAN, WORKOUT_PLAN } from './constants';
+import { DailyLog, WeightEntry, Macros, AppNotification, UserProfile, MealEntry, Supplement } from './types';
+import { MEAL_PLAN, WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN, SUPPLEMENTS } from './constants';
 
 export const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+// IST Helper: Ensures logic follows Indian time regardless of system clock
+export const getISTDateInfo = () => {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const istTime = new Date(now.getTime() + istOffset);
+  return {
+    day: istTime.getUTCDay(), // 0=Sun, 1=Mon, etc.
+    hour: istTime.getUTCHours(),
+    minutes: istTime.getUTCMinutes()
+  };
+};
 
 export const getPastDays = (count: number): string[] => {
   const dates: string[] = [];
@@ -44,11 +56,12 @@ export const calculateMacros = (log: DailyLog): Macros => {
   return totals;
 };
 
-export const calculateExerciseBurn = (log: DailyLog): number => {
+export const calculateExerciseBurn = (log: DailyLog, profile: UserProfile): number => {
   const d = new Date(log.date);
   const dayIndex = d.getDay();
   const adjustedIndex = (dayIndex + 6) % 7;
-  const workout = WORKOUT_PLAN[adjustedIndex];
+  const plan = profile.workoutMode === 'homegym' ? HOME_GYM_WORKOUT_PLAN : WORKOUT_PLAN;
+  const workout = plan[adjustedIndex];
   
   let burn = 0;
   workout.exercises.forEach(ex => {
@@ -59,6 +72,10 @@ export const calculateExerciseBurn = (log: DailyLog): number => {
         burn += ex.kcalPerUnit * 40 * ex.sets;
       }
     }
+  });
+
+  log.customExercises?.forEach(ex => {
+    burn += ex.kcalBurn;
   });
 
   burn += log.walkingMinutes * 5;
@@ -79,69 +96,70 @@ export const calculateTDEE = (profile: UserProfile, currentWeight: number): numb
   return Math.round(bmr * profile.activityLevel);
 };
 
+// Fix: Add missing weight loss projection function
 export const projectWeightLoss = (dailyDeficit: number, days: number): number => {
+  // ~7700 kcal deficit = 1kg body fat loss
   return (dailyDeficit * days) / 7700;
 };
 
-export const calculateDailyScore = (log: DailyLog, macros: Macros, tdee: number): number => {
+export const getScheduledSupplements = (dateStr: string): Supplement[] => {
+  const d = new Date(dateStr);
+  const dayNum = d.getDay();
+  return SUPPLEMENTS.filter(s => {
+    if (s.frequency === 'daily') return true;
+    if (s.frequency === 'specific') return s.days?.includes(dayNum);
+    return false;
+  });
+};
+
+export const calculateDailyScore = (log: DailyLog, macros: Macros, tdee: number, profile: UserProfile): number => {
   let score = 0;
   if (log.weight) score += 1;
   
-  const mealKeys: (keyof DailyLog['meals'])[] = ['breakfast', 'midSnack', 'lunch', 'eveningSnack', 'dinner'];
-  const mealsCount = mealKeys.filter(k => !!log.meals[k]).length;
-  
-  if (mealsCount === 5) {
-    if (macros.kcal >= 1850 && macros.kcal <= 1950) score += 4;
-    else if (macros.kcal < 1850) score += 1;
-    else if (macros.kcal > 1950 && macros.kcal <= 2100) score += 1;
-  }
+  const macrosMet = macros.kcal >= 1850 && macros.kcal <= 1950;
+  if (macrosMet) score += 4;
 
   const d = new Date(log.date);
   const dayIndex = d.getDay();
   const adjustedIndex = (dayIndex + 6) % 7;
-  const workout = WORKOUT_PLAN[adjustedIndex];
+  const plan = profile.workoutMode === 'homegym' ? HOME_GYM_WORKOUT_PLAN : WORKOUT_PLAN;
+  const workout = plan[adjustedIndex];
   const requiredCount = workout.exercises.length;
   
   if (requiredCount > 0) {
     const completedCount = log.completedExercises.length;
-    score += (completedCount / requiredCount) * 3;
+    score += (completedCount / requiredCount) * 2;
   } else {
-    score += 3;
+    score += 2;
   }
 
   const targetWalking = workout.walkingTarget;
   if (log.walkingMinutes >= targetWalking) score += 2;
-  else if (log.walkingMinutes > 0) score += 1;
 
-  return Math.min(10, Math.round(score * 10) / 10);
-};
+  // SUPPLEMENT SCORING (INTEGRATED)
+  const scheduled = getScheduledSupplements(log.date);
+  const taken = log.takenSupplements || [];
+  const scheduledCount = scheduled.length;
 
-export const generateSmartNotifications = (log: DailyLog, macros: Macros, tdee: number): AppNotification[] => {
-  const notifications: AppNotification[] = [];
-  const hour = new Date().getHours();
-  const now = Date.now();
+  if (scheduledCount > 0) {
+    const isFullAdherence = scheduled.every(s => taken.includes(s.id));
+    
+    if (isFullAdherence) {
+      score += 1;
+    } else {
+      // Specific Penalties
+      const isSunday = d.getDay() === 0;
+      if (isSunday && !taken.includes('d3')) {
+        score -= 1;
+      }
 
-  if (hour >= 7 && hour < 10 && !log.weight) {
-    notifications.push({
-      id: 'weight-rem',
-      title: 'Morning Weigh-in',
-      body: 'Track your morning weight for metabolic accuracy.',
-      type: 'reminder',
-      timestamp: now,
-      read: false
-    });
+      const nightSupps = scheduled.filter(s => s.timing === 'night');
+      const allNightTaken = nightSupps.every(s => taken.includes(s.id));
+      if (nightSupps.length > 0 && !allNightTaken) {
+        score -= 0.5;
+      }
+    }
   }
 
-  if (macros.kcal > 1950) {
-    notifications.push({
-      id: 'cal-excess',
-      title: 'Goal Exceeded',
-      body: `Intake is above your 1950 limit. Fat loss slowed.`,
-      type: 'critical',
-      timestamp: now,
-      read: false
-    });
-  }
-
-  return notifications;
+  return Math.min(10, Math.max(0, Math.round(score * 10) / 10));
 };
