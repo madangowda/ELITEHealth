@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { DailyLog, Macros, MealEntry, UserProfile } from '../types';
-import { calculateMacros, calculateExerciseBurn, calculateDailyScore } from '../utils';
-import { DAILY_TARGETS, MEAL_PLAN, WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN } from '../constants';
-import { CheckCircle2, Flame, Droplets, Footprints, Utensils, Dumbbell, Zap, Repeat, Layers, Sparkles } from 'lucide-react';
+import { DailyLog, Macros, MealEntry, UserProfile, Supplement } from '../types';
+import { calculateMacros, calculateExerciseBurn, calculateDailyScore, getScheduledSupplements } from '../utils';
+import { DAILY_TARGETS, MEAL_PLAN, WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN, SUPPLEMENTS } from '../constants';
+import { CheckCircle2, Flame, Droplets, Footprints, Utensils, Dumbbell, Zap, Repeat, Layers, Sparkles, Pill, Scale, Circle, Clock } from 'lucide-react';
 
 interface DaySummaryProps {
   log: DailyLog;
@@ -23,6 +23,9 @@ const DaySummary: React.FC<DaySummaryProps> = ({ log, tdee, profile }) => {
   const plan = profile.workoutMode === 'homegym' ? HOME_GYM_WORKOUT_PLAN : WORKOUT_PLAN;
   const workout = plan[adjustedIndex];
 
+  const scheduledSupps = getScheduledSupplements(log.date);
+  const takenSupps = log.takenSupplements || [];
+
   return (
     <div className="space-y-6 pb-12">
       <div className="flex justify-between items-start">
@@ -36,26 +39,47 @@ const DaySummary: React.FC<DaySummaryProps> = ({ log, tdee, profile }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 flex justify-between items-center">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-orange-500">
-            <Zap size={14} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Net Energy</span>
+      <div className="grid grid-cols-1 gap-4">
+        {/* Net Energy Card */}
+        <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 flex justify-between items-center">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-orange-500">
+              <Zap size={14} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Net Energy</span>
+            </div>
+            <div className="text-2xl font-black text-slate-900">
+              {Math.round(macros.kcal - burn)} <span className="text-sm text-slate-400">kcal</span>
+            </div>
           </div>
-          <div className="text-2xl font-black text-slate-900">
-            {Math.round(macros.kcal - burn)} <span className="text-sm text-slate-400">kcal</span>
+          <div className="flex gap-6 text-right">
+            <div>
+              <span className="block text-[9px] font-black text-slate-400 uppercase tracking-tighter">In</span>
+              <span className="text-sm font-black text-slate-700">{Math.round(macros.kcal)}</span>
+            </div>
+            <div>
+              <span className="block text-[9px] font-black text-slate-400 uppercase tracking-tighter">Burn</span>
+              <span className="text-sm font-black text-emerald-500">-{burn}</span>
+            </div>
           </div>
         </div>
-        <div className="flex gap-6 text-right">
-          <div>
-            <span className="block text-[9px] font-black text-slate-400 uppercase tracking-tighter">In</span>
-            <span className="text-sm font-black text-slate-700">{Math.round(macros.kcal)}</span>
+
+        {/* Weight Card */}
+        {log.weight && (
+          <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 flex justify-between items-center">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-blue-500">
+                <Scale size={14} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Recorded Weight</span>
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                {log.weight} <span className="text-sm text-slate-400">kg</span>
+              </div>
+            </div>
+            <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase">
+              Check-In Done
+            </div>
           </div>
-          <div>
-            <span className="block text-[9px] font-black text-slate-400 uppercase tracking-tighter">Burn</span>
-            <span className="text-sm font-black text-emerald-500">-{burn}</span>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -113,6 +137,38 @@ const DaySummary: React.FC<DaySummaryProps> = ({ log, tdee, profile }) => {
           ))}
         </div>
       </div>
+
+      {/* Supplement Audit */}
+      {scheduledSupps.length > 0 && (
+        <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Pill size={16} className="text-indigo-500" />
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Supplement Protocol</h3>
+          </div>
+          <div className="space-y-3">
+            {scheduledSupps.map(s => {
+              const completed = takenSupps.includes(s.id);
+              return (
+                <div key={s.id} className="flex justify-between items-center py-3 border-b border-slate-50 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <div className={completed ? 'text-emerald-500' : 'text-slate-200'}>
+                      {completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{s.timing} stack</span>
+                      <span className={`text-xs font-bold ${completed ? 'text-slate-800' : 'text-slate-400'}`}>{s.name}</span>
+                      <span className="text-[10px] font-medium text-slate-500">{s.dose}</span>
+                    </div>
+                  </div>
+                  {completed && (
+                    <div className="text-[8px] font-black text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded">Ingested</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Exercise Audit */}
       <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 space-y-4">

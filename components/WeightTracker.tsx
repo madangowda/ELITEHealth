@@ -96,7 +96,7 @@ const WeightTracker: React.FC<WeightTrackerProps> = ({ weights, setWeights, log,
               type="number"
               value={heightInput}
               onChange={(e) => setHeightInput(e.target.value)}
-              className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-lg font-black focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-lg font-black text-black focus:ring-2 focus:ring-blue-500"
             />
             <button onClick={handleSaveHeight} className="bg-slate-900 text-white p-3 rounded-xl active:scale-90 transition-transform"><Activity size={18}/></button>
           </div>
@@ -109,7 +109,7 @@ const WeightTracker: React.FC<WeightTrackerProps> = ({ weights, setWeights, log,
               step="0.1"
               value={weightInput}
               onChange={(e) => setWeightInput(e.target.value)}
-              className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-lg font-black focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-lg font-black text-black focus:ring-2 focus:ring-blue-500"
             />
             <button onClick={handleSaveWeight} className="bg-blue-600 text-white p-3 rounded-xl active:scale-90 transition-transform"><Scale size={18}/></button>
           </div>
@@ -176,12 +176,32 @@ const WeightTracker: React.FC<WeightTrackerProps> = ({ weights, setWeights, log,
         <div className="h-48 -mx-2 min-w-0" style={{ position: 'relative', width: '100%' }}>
           {isMounted && chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+              <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="date" tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} axisLine={false} tickLine={false} dy={10} />
-                <YAxis hide domain={['dataMin - 1', 'dataMax + 1']} />
-                <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} />
-                <Line type="monotone" dataKey="weight" stroke="#2563eb" strokeWidth={4} dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }} />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} 
+                  axisLine={false} 
+                  tickLine={false} 
+                  dy={10} 
+                />
+                <YAxis 
+                  tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} 
+                  axisLine={false} 
+                  tickLine={false} 
+                  domain={['dataMin - 2', 'dataMax + 2']} 
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} 
+                />
+                <Line 
+                  type="linear" 
+                  dataKey="weight" 
+                  stroke="#2563eb" 
+                  strokeWidth={4} 
+                  dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }} 
+                  activeDot={{ r: 6 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           ) : (

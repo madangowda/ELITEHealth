@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { DailyLog, WeightEntry, UserProfile, MealEntry } from '../types';
-import { getPastDays, calculateMacros, calculateDailyScore, calculateTDEE, calculateExerciseBurn, getISTDateString } from '../utils';
+import { getPastDays, calculateMacros, calculateDailyScore, calculateTDEE, calculateExerciseBurn, getISTDateString, getScheduledSupplements } from '../utils';
 import { WORKOUT_PLAN, MEAL_PLAN } from '../constants';
 import DaySummary from './DaySummary';
-import { CalendarDays, ChevronRight, CheckCircle2, ChevronLeft, Dumbbell, Utensils, Zap, Sparkles } from 'lucide-react';
+import { CalendarDays, ChevronRight, CheckCircle2, ChevronLeft, Dumbbell, Utensils, Zap, Sparkles, Pill } from 'lucide-react';
 
 interface HistoryTrackerProps {
   logs: Record<string, DailyLog>;
@@ -121,7 +121,10 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
             log.meals.custom.forEach(c => eatenFoodNames.push(c.name));
           }
 
-          const hasData = eatenFoodNames.length > 0 || completedExNames.length > 0 || log.walkingMinutes > 0;
+          const scheduledSupps = getScheduledSupplements(date);
+          const takenSuppsCount = (log.takenSupplements || []).length;
+
+          const hasData = eatenFoodNames.length > 0 || completedExNames.length > 0 || log.walkingMinutes > 0 || takenSuppsCount > 0;
 
           return (
             <button
@@ -170,11 +173,12 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
                       <div className="w-5 h-5 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center shrink-0">
                         <Dumbbell size={10} strokeWidth={3} />
                       </div>
-                      {completedExNames.map((name, i) => (
+                      {completedExNames.slice(0, 4).map((name, i) => (
                         <span key={i} className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md text-[9px] font-bold whitespace-nowrap">
                           {name}
                         </span>
                       ))}
+                      {completedExNames.length > 4 && <span className="text-[9px] font-bold text-slate-400">+{completedExNames.length - 4}</span>}
                     </div>
                   )}
 
@@ -183,24 +187,38 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
                       <div className="w-5 h-5 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center shrink-0">
                         <Utensils size={10} strokeWidth={3} />
                       </div>
-                      {eatenFoodNames.map((name, i) => (
+                      {eatenFoodNames.slice(0, 4).map((name, i) => (
                         <span key={i} className="bg-slate-50 text-slate-600 px-2 py-0.5 rounded-md text-[9px] font-bold whitespace-nowrap">
                           {name}
                         </span>
                       ))}
+                      {eatenFoodNames.length > 4 && <span className="text-[9px] font-bold text-slate-400">+{eatenFoodNames.length - 4}</span>}
                     </div>
                   )}
 
-                  {log.walkingMinutes > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center shrink-0">
-                        <Zap size={10} strokeWidth={3} />
+                  <div className="flex gap-4">
+                    {takenSuppsCount > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 bg-indigo-50 text-indigo-500 rounded-lg flex items-center justify-center shrink-0">
+                          <Pill size={10} strokeWidth={3} />
+                        </div>
+                        <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest">
+                          {takenSuppsCount} / {scheduledSupps.length} Supplements
+                        </span>
                       </div>
-                      <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest">
-                        {log.walkingMinutes} Min Fast Walking
-                      </span>
-                    </div>
-                  )}
+                    )}
+                    
+                    {log.walkingMinutes > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center shrink-0">
+                          <Zap size={10} strokeWidth={3} />
+                        </div>
+                        <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest">
+                          {log.walkingMinutes} Min Walk
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
