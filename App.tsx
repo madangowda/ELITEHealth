@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { DailyLog, WeightEntry, AppNotification, UserProfile } from './types';
-import { formatDate, calculateMacros, calculateExerciseBurn, calculateDailyScore, calculateTDEE } from './utils';
+import { getISTDateString, calculateMacros, calculateExerciseBurn, calculateDailyScore, calculateTDEE } from './utils';
 import Dashboard from './components/Dashboard';
 import DietTracker from './components/DietTracker';
 import WorkoutTracker from './components/WorkoutTracker';
@@ -23,13 +23,22 @@ const App: React.FC = () => {
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-  const [today, setToday] = useState(formatDate(new Date()));
+  // Strictly follow Indian Time for today's log key
+  const [today, setToday] = useState(getISTDateString());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
     const handleStatus = () => setIsOnline(navigator.onLine);
     window.addEventListener('online', handleStatus);
     window.addEventListener('offline', handleStatus);
+
+    // Update today's date periodically to check for IST rollover
+    const timer = setInterval(() => {
+      const newToday = getISTDateString();
+      if (newToday !== today) {
+        setToday(newToday);
+      }
+    }, 60000); // Check every minute
 
     try {
       const savedLogs = localStorage.getItem('coach_logs');
@@ -46,8 +55,9 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('online', handleStatus);
       window.removeEventListener('offline', handleStatus);
+      clearInterval(timer);
     };
-  }, []);
+  }, [today]);
 
   useEffect(() => {
     localStorage.setItem('coach_logs', JSON.stringify(logs));

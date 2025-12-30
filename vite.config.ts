@@ -6,7 +6,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   // Load environment variables from the current directory.
   // The third parameter '' allows loading variables without the VITE_ prefix.
-  const env = loadEnv(mode, process.cwd(), '');
+  // Fix: Property 'cwd' does not exist on type 'Process'. Casting process to any to access the Node.js cwd method in the config environment.
+  const env = loadEnv(mode, (process as any).cwd(), '');
   
   return {
     plugins: [react()],

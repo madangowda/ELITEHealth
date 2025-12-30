@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { DailyLog, WeightEntry, UserProfile, MealEntry } from '../types';
-import { getPastDays, calculateMacros, calculateDailyScore, calculateTDEE, calculateExerciseBurn } from '../utils';
+import { getPastDays, calculateMacros, calculateDailyScore, calculateTDEE, calculateExerciseBurn, getISTDateString } from '../utils';
 import { WORKOUT_PLAN, MEAL_PLAN } from '../constants';
 import DaySummary from './DaySummary';
 import { CalendarDays, ChevronRight, CheckCircle2, ChevronLeft, Dumbbell, Utensils, Zap, Sparkles } from 'lucide-react';
@@ -16,7 +16,6 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const past30Days = useMemo(() => getPastDays(30), []);
 
-  // Fix: Ensure the default DailyLog object includes all required properties, specifically takenSupplements.
   const getLogForDate = (date: string): DailyLog => {
     return logs[date] || {
       date,
@@ -100,7 +99,8 @@ const HistoryTracker: React.FC<HistoryTrackerProps> = ({ logs, weights, profile 
           const score = calculateDailyScore(log, macros, tdeeForDate, profile);
           
           const d = new Date(date);
-          const isToday = date === new Date().toISOString().split('T')[0];
+          // Strictly IST aware "Today" highlighting
+          const isToday = date === getISTDateString();
           
           const completedExNames = workout.exercises
             .filter(ex => log.completedExercises.includes(ex.id))

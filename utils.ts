@@ -4,10 +4,25 @@ import { MEAL_PLAN, WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN, SUPPLEMENTS } from './c
 
 export const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-// IST Helper: Ensures logic follows Indian time regardless of system clock
+/**
+ * Returns the current date string (YYYY-MM-DD) in Indian Standard Time (IST).
+ * This ensures the app doesn't roll over to the next day early or late 
+ * based on the user's local device time zone.
+ */
+export const getISTDateString = (): string => {
+  const now = new Date();
+  // IST is UTC + 5:30
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+  return istTime.toISOString().split('T')[0];
+};
+
+/**
+ * Detailed IST time information for scheduling morning/night protocols.
+ */
 export const getISTDateInfo = () => {
   const now = new Date();
-  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+  const istOffset = 5.5 * 60 * 60 * 1000;
   const istTime = new Date(now.getTime() + istOffset);
   return {
     day: istTime.getUTCDay(), // 0=Sun, 1=Mon, etc.
@@ -18,8 +33,12 @@ export const getISTDateInfo = () => {
 
 export const getPastDays = (count: number): string[] => {
   const dates: string[] = [];
+  // Use IST today as the starting point for history
+  const todayStr = getISTDateString();
+  const todayDate = new Date(todayStr);
+  
   for (let i = 0; i < count; i++) {
-    const d = new Date();
+    const d = new Date(todayDate);
     d.setDate(d.getDate() - i);
     dates.push(formatDate(d));
   }
@@ -96,9 +115,7 @@ export const calculateTDEE = (profile: UserProfile, currentWeight: number): numb
   return Math.round(bmr * profile.activityLevel);
 };
 
-// Fix: Add missing weight loss projection function
 export const projectWeightLoss = (dailyDeficit: number, days: number): number => {
-  // ~7700 kcal deficit = 1kg body fat loss
   return (dailyDeficit * days) / 7700;
 };
 
@@ -136,7 +153,6 @@ export const calculateDailyScore = (log: DailyLog, macros: Macros, tdee: number,
   const targetWalking = workout.walkingTarget;
   if (log.walkingMinutes >= targetWalking) score += 2;
 
-  // SUPPLEMENT SCORING (INTEGRATED)
   const scheduled = getScheduledSupplements(log.date);
   const taken = log.takenSupplements || [];
   const scheduledCount = scheduled.length;
@@ -147,7 +163,6 @@ export const calculateDailyScore = (log: DailyLog, macros: Macros, tdee: number,
     if (isFullAdherence) {
       score += 1;
     } else {
-      // Specific Penalties
       const isSunday = d.getDay() === 0;
       if (isSunday && !taken.includes('d3')) {
         score -= 1;
