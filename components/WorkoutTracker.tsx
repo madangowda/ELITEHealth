@@ -47,7 +47,7 @@ const VideoPlayer: React.FC<{ exercise: Exercise; isExpanded: boolean }> = ({ ex
     const videoId = exercise.videoUrl.split('/').pop()?.split('?')[0];
     return (
       <iframe 
-        src={`${exercise.videoUrl}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1`}
+        src={`${exercise.videoUrl}?autoplay=1&mute=0&loop=1&playlist=${videoId}&controls=1&modestbranding=1`}
         title={exercise.name}
         className="w-full h-full border-0"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -61,7 +61,7 @@ const VideoPlayer: React.FC<{ exercise: Exercise; isExpanded: boolean }> = ({ ex
       <video 
         ref={videoRef}
         src={exercise.videoUrl}
-        autoPlay loop muted playsInline preload="auto"
+        autoPlay loop playsInline preload="auto"
         onLoadStart={() => setLoading(true)}
         onCanPlay={() => setLoading(false)}
         onError={() => setError(true)}
