@@ -113,8 +113,13 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog, profile
           },
         },
       });
-      const data = JSON.parse(response.text.replace(/```json|```/g, "").trim());
-      setCustomBurn(Math.round(data.kcalPerSet * parseInt(customSets)).toString());
+
+      if (response.text) {
+        const data = JSON.parse(response.text.replace(/```json|```/g, "").trim());
+        setCustomBurn(Math.round(data.kcalPerSet * parseInt(customSets)).toString());
+      } else {
+        throw new Error("Empty response from AI engine");
+      }
     } catch (err) {
       setError("AI unavailable. Please input burn manually.");
     } finally {
