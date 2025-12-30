@@ -110,7 +110,7 @@ const WARM_UP: Exercise[] = [
 
 const UPPER_BODY_EXERCISES: Exercise[] = [
   ...WARM_UP,
-  { id: 'up1', name: 'Incline push-ups', equipment: 'Bench', sets: 3, reps: '15', kcalPerUnit: 5, unit: 'set', videoUrl: 'https://www.youtube.com/embed/1YCLMwI1LK4', formTips: ['Keep body straight', 'Lower chest to bench', 'Full elbow extension'] },
+  { id: 'up1', name: 'Push-ups', equipment: 'Bodyweight', sets: 3, reps: '10–15', kcalPerUnit: 5, unit: 'set', videoUrl: '/attach/push_ups.mp4', formTips: ['Core tight like a plank', 'Elbows at 45 degrees', 'Full range of motion'] },
   { id: 'up2', name: 'Dumbbell bench press', equipment: '7–10 kg DBs', sets: 3, reps: '10', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/db_bench_press.mp4', formTips: ['Press up over mid-chest', 'Stable feet on floor', 'Control the descent'] },
   { id: 'up3', name: 'One-arm DB row', equipment: '10–12 kg', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/one_arm_db_row.mp4', formTips: ['Pull to the hip, not chest', 'Keep back flat', 'Do not rotate torso'] },
   { id: 'up4', name: 'Shoulder press', equipment: '7–10 kg', sets: 3, reps: '10', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/shoulder_press.mp4', formTips: ['Full extension at top', 'Do not arch lower back', 'Core braced'] },
@@ -121,28 +121,28 @@ const UPPER_BODY_EXERCISES: Exercise[] = [
 const LOWER_BODY_EXERCISES: Exercise[] = [
   ...WARM_UP,
   { id: 'lo1', name: 'Squats', equipment: 'Barbell (20kg)', sets: 3, reps: '15', kcalPerUnit: 8, unit: 'set', videoUrl: '/attach/barbell_squats.mp4', formTips: ['Brace core before descent', 'Weight on heels', 'Hips below parallel'] },
-  { id: 'lo2', name: 'Goblet squats', equipment: '10–12 kg DB', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: '/attach/goblet_squats.mp4', formTips: ['Keep DB close to chest', 'Drive through heels', 'Elbows inside knees'] },
-  { id: 'lo3', name: 'Lunges', equipment: 'Bodyweight / DBs', sets: 3, reps: '10 per leg', kcalPerUnit: 6, unit: 'set', videoUrl: '/attach/lunges.mp4', formTips: ['Vertical torso', 'Knee just above floor', 'Big step forward'] },
-  { id: 'lo4', name: 'Romanian deadlift', equipment: '20 kg barbell', sets: 3, reps: '12', kcalPerUnit: 8, unit: 'set', videoUrl: '/attach/rdl.mp4', formTips: ['Hinge at hips', 'Keep bar close to legs', 'Back flat at all times'] },
-  { id: 'lo5', name: 'Calf raises', equipment: 'Bodyweight', sets: 3, reps: '20', kcalPerUnit: 3, unit: 'set', videoUrl: '/attach/calf_raises.mp4', formTips: ['High on toes', 'Slow controlled descent', 'Pause at the top'] },
+  { id: 'lo2', name: 'Goblet squats', equipment: '10–12 kg DB', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: 'https://www.youtube.com/embed/_yvv49yQT8I?si=IYdxVDj8dmyoWGRd', formTips: ['Keep DB close to chest', 'Drive through heels', 'Elbows inside knees'] },
+  { id: 'lo3', name: 'Lunges', equipment: 'Bodyweight / DBs', sets: 3, reps: '10 per leg', kcalPerUnit: 6, unit: 'set', videoUrl: 'https://www.youtube.com/embed/GiHqAZIqgLg?si=8OvXipZncfOf7Mib', formTips: ['Vertical torso', 'Knee just above floor', 'Big step forward'] },
+  { id: 'lo4', name: 'Romanian deadlift', equipment: '20 kg barbell', sets: 3, reps: '12', kcalPerUnit: 8, unit: 'set', videoUrl: 'https://www.youtube.com/embed/6y1RD7_476Q?si=nlPaOkVT_KpsKOOV', formTips: ['Hinge at hips', 'Keep bar close to legs', 'Back flat at all times'] },
+  { id: 'lo5', name: 'Calf raises', equipment: 'Bodyweight', sets: 3, reps: '20', kcalPerUnit: 3, unit: 'set', videoUrl: 'https://www.youtube.com/embed/K8WjaRt3pqo?si=I6Zjv2bfdi4mVCDh', formTips: ['High on toes', 'Slow controlled descent', 'Pause at the top'] },
 ];
 
 const FULL_BODY_EXERCISES: Exercise[] = [
   ...WARM_UP,
-  { id: 'fb1', name: 'Incline push-ups', equipment: 'Bench', sets: 3, reps: '15', kcalPerUnit: 5, unit: 'set', videoUrl: 'https://www.youtube.com/embed/1YCLMwI1LK4', formTips: ['Keep body straight', 'Lower chest to bench', 'Full elbow extension'] },
-  { id: 'fb2', name: 'Barbell row', equipment: '20 kg', sets: 3, reps: '10', kcalPerUnit: 8, unit: 'set', videoUrl: '/attach/barbell_row.mp4', formTips: ['Pull to lower ribs', 'Squeeze shoulder blades', 'Neutral neck position'] },
+  { id: 'fb1', name: 'Push-ups', equipment: 'Bodyweight', sets: 3, reps: '12', kcalPerUnit: 5, unit: 'set', videoUrl: '/attach/push_ups.mp4', formTips: ['Maintain straight line', 'Focus on chest squeeze', 'Controlled pace'] },
+  { id: 'fb2', name: 'Barbell row', equipment: '20 kg', sets: 3, reps: '10', kcalPerUnit: 8, unit: 'set', videoUrl: 'https://www.youtube.com/embed/f2D51Xx5oKc?si=8y3dhD2zenx7KDK1', formTips: ['Pull to lower ribs', 'Squeeze shoulder blades', 'Neutral neck position'] },
   { id: 'fb3', name: 'DB shoulder press', equipment: '7–10 kg', sets: 3, reps: '10', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/shoulder_press.mp4', formTips: ['Avoid locking elbows', 'Brace abdominal wall', 'Full range'] },
-  { id: 'fb4', name: 'DB squats', equipment: '10–12 kg', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: '/attach/goblet_squats.mp4', formTips: ['Upper back tight', 'Deep breath in at top', 'Explode upwards'] },
-  { id: 'fb5', name: 'Plank', equipment: 'Bodyweight', sets: 3, reps: '30–40 sec', kcalPerUnit: 0.15, unit: 'second', videoUrl: '/attach/plank.mp4', formTips: ['Elbows under shoulders', 'Squeeze glutes and core', 'Don\'t let hips sag'] },
+  { id: 'fb4', name: 'DB squats', equipment: '10–12 kg', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: 'https://www.youtube.com/embed/_yvv49yQT8I?si=IYdxVDj8dmyoWGRd', formTips: ['Upper back tight', 'Deep breath in at top', 'Explode upwards'] },
+  { id: 'fb5', name: 'Plank', equipment: 'Bodyweight', sets: 3, reps: '30–40 sec', kcalPerUnit: 0.15, unit: 'second', videoUrl: 'https://www.youtube.com/embed/9FmDlncad8E?si=j2yPnOvwnNqo2dhH5', formTips: ['Elbows under shoulders', 'Squeeze glutes and core', 'Don\'t let hips sag'] },
 ];
 
 const SATURDAY_EXERCISES: Exercise[] = [
   ...WARM_UP,
-  { id: 'sa1', name: 'Incline push-ups', equipment: 'Bench', sets: 3, reps: '15', kcalPerUnit: 5, unit: 'set', videoUrl: 'https://www.youtube.com/embed/1YCLMwI1LK4', formTips: ['Keep body straight', 'Lower chest to bench', 'Full elbow extension'] },
-  { id: 'sa2', name: 'Dumbbell chest fly', equipment: '7 kg DBs', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/chest_fly.mp4', formTips: ['Slight bend in elbows', 'Hug a tree motion', 'Stretch but don\'t overextend'] },
-  { id: 'sa3', name: 'DB Romanian deadlift', equipment: '10–12 kg DBs', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: '/attach/rdl.mp4', formTips: ['Feel stretch in hamstrings', 'Keep DBs on your legs', 'Back perfectly flat'] },
-  { id: 'sa4', name: 'Russian twists', equipment: '5 kg DB', sets: 3, reps: '20', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/russian_twists.mp4', formTips: ['Lean back slightly', 'Rotate from the torso', 'Keep feet off floor if possible'] },
-  { id: 'sa5', name: 'Leg raises', equipment: 'Bodyweight', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: '/attach/leg_raises.webm', formTips: ['Lower back pressed to floor', 'Lower legs slowly', 'Do not use momentum'] },
+  { id: 'sa1', name: 'Incline push-ups', equipment: 'Bench', sets: 3, reps: '15', kcalPerUnit: 5, unit: 'set', videoUrl: 'https://www.youtube.com/embed/1YCLMwI1LK4?si=pLmDXkyItfirpjHk', formTips: ['Keep body straight', 'Lower chest to bench', 'Full elbow extension'] },
+  { id: 'sa2', name: 'Dumbbell chest fly', equipment: '7 kg DBs', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: 'https://www.youtube.com/embed/YBXx6V-x3NQ?si=YjkMwWd9mQUA96i4', formTips: ['Slight bend in elbows', 'Hug a tree motion', 'Stretch but don\'t overextend'] },
+  { id: 'sa3', name: 'DB Romanian deadlift', equipment: '10–12 kg DBs', sets: 3, reps: '12', kcalPerUnit: 7, unit: 'set', videoUrl: 'https://www.youtube.com/embed/6y1RD7_476Q?si=nlPaOkVT_KpsKOOV', formTips: ['Feel stretch in hamstrings', 'Keep DBs on your legs', 'Back perfectly flat'] },
+  { id: 'sa4', name: 'Russian twists', equipment: '5 kg DB', sets: 3, reps: '20', kcalPerUnit: 4, unit: 'set', videoUrl: 'https://www.youtube.com/embed/6oCkvdOEL6M?si=K6qWm0zwLp4j8C4p', formTips: ['Lean back slightly', 'Rotate from the torso', 'Keep feet off floor if possible'] },
+  { id: 'sa5', name: 'Leg raises', equipment: 'Bodyweight', sets: 3, reps: '12', kcalPerUnit: 4, unit: 'set', videoUrl: 'https://www.youtube.com/embed/bivGg28Ej5A?si=RNpwXBwYmQQXH6Lo', formTips: ['Lower back pressed to floor', 'Lower legs slowly', 'Do not use momentum'] },
 ];
 
 export const WORKOUT_PLAN: WorkoutDay[] = [
