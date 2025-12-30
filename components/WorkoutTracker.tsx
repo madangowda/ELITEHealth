@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { DailyLog, Exercise, UserProfile, CustomExerciseEntry } from '../types';
 import { WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN } from '../constants';
@@ -114,8 +113,9 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog, profile
         },
       });
 
-      if (response.text) {
-        const data = JSON.parse(response.text.replace(/```json|```/g, "").trim());
+      const responseText = response.text;
+      if (responseText) {
+        const data = JSON.parse(responseText.replace(/```json|```/g, "").trim());
         setCustomBurn(Math.round(data.kcalPerSet * parseInt(customSets)).toString());
       } else {
         throw new Error("Empty response from AI engine");

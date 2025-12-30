@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DailyLog, Macros, MealEntry, CustomMealEntry } from '../types';
 import { MEAL_PLAN, DAILY_TARGETS } from '../constants';
@@ -108,9 +107,10 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         },
       });
 
-      if (response.text) {
+      const responseText = response.text;
+      if (responseText) {
         // Robust cleaning: remove markdown code blocks (e.g., ```json) and trim whitespace
-        const cleanJson = response.text.replace(/```json|```/g, "").trim();
+        const cleanJson = responseText.replace(/```json|```/g, "").trim();
         const data = JSON.parse(cleanJson);
         
         // Update state with rounded numeric values

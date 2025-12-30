@@ -8,7 +8,7 @@ import WorkoutTracker from './components/WorkoutTracker';
 import WeightTracker from './components/WeightTracker';
 import HistoryTracker from './components/HistoryTracker';
 import SupplementTracker from './components/SupplementTracker';
-import { LayoutGrid, Utensils, Dumbbell, Scale, History, FileDown, ShieldCheck, Settings, Wifi, WifiOff, Box, Pill } from 'lucide-react';
+import { LayoutGrid, Utensils, Dumbbell, Scale, History, Settings, Pill, Box, User, ShieldCheck } from 'lucide-react';
 
 const DEFAULT_PROFILE: UserProfile = {
   height: 188,
@@ -25,13 +25,8 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   // Strictly follow Indian Time for today's log key
   const [today, setToday] = useState(getISTDateString());
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    const handleStatus = () => setIsOnline(navigator.onLine);
-    window.addEventListener('online', handleStatus);
-    window.addEventListener('offline', handleStatus);
-
     // Update today's date periodically to check for IST rollover
     const timer = setInterval(() => {
       const newToday = getISTDateString();
@@ -52,11 +47,7 @@ const App: React.FC = () => {
       }
     } catch (e) { console.warn("Local storage error:", e); }
 
-    return () => {
-      window.removeEventListener('online', handleStatus);
-      window.removeEventListener('offline', handleStatus);
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, [today]);
 
   useEffect(() => {
@@ -97,25 +88,76 @@ const App: React.FC = () => {
       case 'history': return <HistoryTracker logs={logs} weights={weights} profile={profile} />;
       case 'supps': return <SupplementTracker log={currentLog} updateLog={updateLog} />;
       case 'settings': return (
-        <div className="p-8 space-y-10 pb-32 bg-[#0f172a] min-h-screen text-white">
-          <h1 className="text-3xl font-black tracking-tight">System Configuration</h1>
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">Training Protocol</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => setProfile({ ...profile, workoutMode: 'standard' })}
-                className={`stealth-card p-6 rounded-[32px] border transition-all ${profile.workoutMode === 'standard' ? 'bg-blue-600 border-blue-400' : 'bg-white/5 border-white/5 opacity-50'}`}
-              >
-                <Dumbbell className="mb-3 text-white" size={24} />
-                <span className="block text-xs font-black uppercase tracking-tight">Elite Standard</span>
-              </button>
-              <button 
-                onClick={() => setProfile({ ...profile, workoutMode: 'homegym' })}
-                className={`stealth-card p-6 rounded-[32px] border transition-all ${profile.workoutMode === 'homegym' ? 'bg-indigo-600 border-indigo-400' : 'bg-white/5 border-white/5 opacity-50'}`}
-              >
-                <Box className="mb-3 text-white" size={24} />
-                <span className="block text-xs font-black uppercase tracking-tight">Home Gym Plan</span>
-              </button>
+        <div className="p-8 space-y-10 pb-32 bg-[#0f172a] min-h-screen text-white animate-in fade-in duration-500">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Settings className="text-white" size={24} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight">System Config</h1>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Profile & Protocol Selection</p>
+            </div>
+          </div>
+          
+          <div className="space-y-8">
+            <div className="space-y-6">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-2">Workout Mode Selection</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => setProfile({ ...profile, workoutMode: 'standard' })}
+                  className={`stealth-card p-6 rounded-[32px] border transition-all flex flex-col items-center gap-3 active:scale-95 ${profile.workoutMode === 'standard' ? 'bg-blue-600 border-blue-400 shadow-xl shadow-blue-500/20' : 'bg-white/5 border-white/5 opacity-40'}`}
+                >
+                  <Dumbbell className="text-white" size={28} />
+                  <span className="block text-xs font-black uppercase tracking-tight">Elite Standard</span>
+                </button>
+                <button 
+                  onClick={() => setProfile({ ...profile, workoutMode: 'homegym' })}
+                  className={`stealth-card p-6 rounded-[32px] border transition-all flex flex-col items-center gap-3 active:scale-95 ${profile.workoutMode === 'homegym' ? 'bg-indigo-600 border-indigo-400 shadow-xl shadow-indigo-500/20' : 'bg-white/5 border-white/5 opacity-40'}`}
+                >
+                  <Box className="text-white" size={28} />
+                  <span className="block text-xs font-black uppercase tracking-tight">Home Gym Plan</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] pl-2">Biometric Parameters</h3>
+              <div className="grid grid-cols-1 gap-4">
+                 <div className="bg-white/5 border border-white/5 p-6 rounded-[32px] space-y-4">
+                    <div className="flex items-center gap-3 text-slate-400">
+                      <User size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">General Profile</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                       <div>
+                         <label className="text-[9px] font-bold text-slate-500 uppercase block mb-2">Age</label>
+                         <input 
+                           type="number" 
+                           value={profile.age} 
+                           onChange={(e) => setProfile({...profile, age: parseInt(e.target.value) || 30})}
+                           className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-black text-white"
+                         />
+                       </div>
+                       <div>
+                         <label className="text-[9px] font-bold text-slate-500 uppercase block mb-2">Height (cm)</label>
+                         <input 
+                           type="number" 
+                           value={profile.height} 
+                           onChange={(e) => setProfile({...profile, height: parseInt(e.target.value) || 188})}
+                           className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm font-black text-white"
+                         />
+                       </div>
+                    </div>
+                 </div>
+              </div>
+            </div>
+
+            <div className="bg-emerald-500/5 border border-emerald-500/20 p-8 rounded-[40px] flex items-center gap-5">
+              <ShieldCheck className="text-emerald-400 shrink-0" size={32} />
+              <div>
+                <h4 className="text-sm font-black text-emerald-400">Protocol Active</h4>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Metabolic Baseline: 1950 kcal</p>
+              </div>
             </div>
           </div>
         </div>
@@ -130,12 +172,13 @@ const App: React.FC = () => {
       
       {/* Floating Navigation Dock */}
       <div className="fixed bottom-6 left-6 right-6 z-50">
-        <nav className="glass-nav rounded-[32px] p-2 flex justify-between shadow-2xl max-w-[400px] mx-auto">
+        <nav className="glass-nav rounded-[32px] p-2 flex justify-between shadow-2xl max-w-[400px] mx-auto border border-white/5">
           <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<LayoutGrid size={20} />} />
           <NavButton active={activeTab === 'diet'} onClick={() => setActiveTab('diet')} icon={<Utensils size={20} />} />
           <NavButton active={activeTab === 'workout'} onClick={() => setActiveTab('workout')} icon={<Dumbbell size={20} />} />
           <NavButton active={activeTab === 'supps'} onClick={() => setActiveTab('supps')} icon={<Pill size={20} />} />
           <NavButton active={activeTab === 'weight'} onClick={() => setActiveTab('weight')} icon={<Scale size={20} />} />
+          <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<Settings size={20} />} />
           <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History size={20} />} />
         </nav>
       </div>
@@ -144,7 +187,7 @@ const App: React.FC = () => {
 };
 
 const NavButton = ({ active, onClick, icon }: any) => (
-  <button onClick={onClick} className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 scale-110' : 'text-slate-500 hover:text-slate-300'}`}>
+  <button onClick={onClick} className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 scale-110' : 'text-slate-500 hover:text-slate-300'}`}>
     {icon}
   </button>
 );
