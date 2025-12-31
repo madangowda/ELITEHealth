@@ -89,6 +89,23 @@ const DaySummary: React.FC<DaySummaryProps> = ({ log, tdee, profile }) => {
         <SummaryMacro label="Fiber" val={macros.fiber} target={DAILY_TARGETS.fiber} unit="g" color="text-indigo-600" bg="bg-indigo-50" />
       </div>
 
+      {/* Hydration Audit */}
+      <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Droplets size={16} className="text-blue-400" />
+          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Hydration Audit</h3>
+        </div>
+        <div className="flex justify-between items-end">
+          <div>
+            <span className="text-2xl font-black text-slate-900">{log.waterIntakeMl || 0} <span className="text-xs text-slate-400">ml</span></span>
+            <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">Status: {log.waterIntakeMl >= 3000 ? 'Optimized' : 'Incomplete'}</span>
+          </div>
+          <div className="w-32 h-2 bg-slate-50 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, (log.waterIntakeMl / 3000) * 100)}%` }} />
+          </div>
+        </div>
+      </div>
+
       {/* Diet Audit */}
       <div className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 space-y-4">
         <div className="flex items-center gap-2 mb-2">

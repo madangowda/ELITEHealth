@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { DailyLog, Macros, WeightEntry, UserProfile } from '../types';
 import { calculateTDEE, calculateBMR, getScheduledSupplements, getISTDateInfo } from '../utils';
 import DaySummary from './DaySummary';
-import { Zap, Flame, Footprints, Droplets, Activity, ClipboardList, ChevronLeft, Sparkles, TrendingDown, ChevronRight, ShieldCheck, WifiOff, HardDrive, Wifi, CheckCircle2, Utensils, Dumbbell, ShieldAlert, AlertTriangle, Clock, Target, Info, Pill } from 'lucide-react';
+import { Zap, Flame, Footprints, Droplets, Activity, ClipboardList, ChevronLeft, Sparkles, TrendingDown, ChevronRight, ShieldCheck, WifiOff, HardDrive, Wifi, CheckCircle2, Utensils, Dumbbell, ShieldAlert, AlertTriangle, Clock, Target, Info, Pill, Plus, GlassWater } from 'lucide-react';
 
 interface DashboardProps {
   log: DailyLog;
@@ -41,6 +40,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const takenSuppsCount = (log.takenSupplements || []).length;
   const adherenceColor = takenSuppsCount === scheduledSupps.length && scheduledSupps.length > 0 ? 'text-emerald-400' : takenSuppsCount > 0 ? 'text-amber-400' : 'text-slate-500';
 
+  const waterTarget = 3000; // Default 3L target
+  const waterPercent = Math.min(100, (log.waterIntakeMl / waterTarget) * 100);
+
+  const addWater = (amount: number) => {
+    updateLog({ waterIntakeMl: (log.waterIntakeMl || 0) + amount });
+  };
+
   // Dynamic Reminders based on Indian Time
   const ist = getISTDateInfo();
   const dynamicAdvice = useMemo(() => {
@@ -48,8 +54,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     const isNight = ist.hour >= 20;
     
     if (isMorning) {
-      if (ist.day === 0) return "Today is SuperD3 day – take after a fat-rich breakfast. No empty stomach.";
-      if (ist.day === 1 || ist.day === 4) return "Himalayan Organics B12 scheduled. Time for morning supplements.";
+      if (ist.day === 0) return "Sunday Protocol: SuperD3 day – must take after a fat-rich breakfast. No empty stomach.";
+      if (ist.day === 3 || ist.day === 5) return "Mid-Week Cycle: Himalayan Organics B12 scheduled for today. Sync now.";
       return "Morning protocol active: Omega-3 and Folate after breakfast.";
     }
     if (isNight) {
@@ -131,6 +137,41 @@ const Dashboard: React.FC<DashboardProps> = ({
                 style={{ width: `${Math.min(100, (macros.kcal / 1950) * 100)}%` }} 
               />
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hydration HUD */}
+      <div className="stealth-card rounded-[32px] p-6 border-blue-500/20 shadow-xl bg-gradient-to-br from-blue-950/40 to-slate-900/40">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center">
+                <Droplets size={24} />
+              </div>
+              <div>
+                <h4 className="text-base font-black text-white leading-none">Hydration Logic</h4>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+                  Daily Intake: <span className="text-blue-400">{log.waterIntakeMl || 0}ml</span> <span className="opacity-40">/ {waterTarget}ml</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => addWater(250)} className="w-10 h-10 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center border border-blue-500/20 active:scale-90 transition-all">
+                <Plus size={16} />
+                <span className="text-[8px] font-black absolute mt-6">250</span>
+              </button>
+              <button onClick={() => addWater(500)} className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 active:scale-90 transition-all">
+                <Plus size={16} />
+                <span className="text-[8px] font-black absolute mt-6">500</span>
+              </button>
+            </div>
+          </div>
+          <div className="progress-pill h-2 bg-white/5">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-700 ease-out rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
+              style={{ width: `${waterPercent}%` }} 
+            />
           </div>
         </div>
       </div>
