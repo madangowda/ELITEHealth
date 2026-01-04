@@ -1,20 +1,13 @@
-
-const CACHE_NAME = 'elite-coach-vault-v2';
+const CACHE_NAME = 'elite-coach-v3';
 const ASSETS_TO_CACHE = [
   './',
   'index.html',
-  'manifest.json',
-  'index.tsx',
-  'types.ts',
-  'utils.ts',
-  'constants.ts',
-  'App.tsx'
+  'manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('📦 Vault v2: Localizing App Shell...');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
@@ -37,17 +30,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Do not cache API calls
   if (url.hostname.includes('generativelanguage.googleapis.com')) return;
 
+  // Handle Video streaming separately
   if (url.pathname.includes('/attach/')) {
     event.respondWith(handleVideoFetch(event.request));
     return;
   }
 
+  // Standard Cache-First for local assets, Network-First for others
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || url.hostname.includes('esm.sh'))) {
+      return cachedResponse || fetch(event.request).then((networkResponse) => {
+        // Cache successful local requests
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         }
@@ -55,8 +52,6 @@ self.addEventListener('fetch', (event) => {
       }).catch(() => {
         if (event.request.mode === 'navigate') return caches.match('index.html');
       });
-
-      return cachedResponse || fetchPromise;
     })
   );
 });
@@ -67,7 +62,6 @@ async function handleVideoFetch(request) {
 
   if (!cachedResponse) {
     try {
-      // Use a clean fetch without Range headers to cache the whole file
       const response = await fetch(request.url);
       if (response.status === 200) {
         await cache.put(request.url, response.clone());

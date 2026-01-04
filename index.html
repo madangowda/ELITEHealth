@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,12 +62,13 @@
   <div id="root"></div>
   <script type="module" src="index.tsx"></script>
   <script>
+    // Robust Service Worker Registration for Sandbox Environments
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js', { scope: './' })
+        // Attempt to register using a relative path
+        navigator.serviceWorker.register('./sw.js')
           .then(reg => {
-            console.log('✅ Elite Offline Engine: Active and Shielded');
-            // If service worker is updated, reload to apply
+            console.log('✅ Elite Offline Engine: Localized and Active');
             reg.onupdatefound = () => {
               const installingWorker = reg.installing;
               installingWorker.onstatechange = () => {
@@ -78,7 +78,14 @@
               };
             };
           })
-          .catch(err => console.error('❌ Offline Engine Failed:', err));
+          .catch(err => {
+            // Log warning for origin mismatch errors commonly seen in AI studio/sandbox environments
+            if (err.name === 'SecurityError' || err.message.includes('origin')) {
+              console.warn('⚠️ Service Worker: Sandbox restriction detected. Skipping offline caching to prevent origin mismatch error.');
+            } else {
+              console.error('❌ Service Worker: Registration failed', err);
+            }
+          });
       });
     }
   </script>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DailyLog, Macros, MealEntry, CustomMealEntry } from '../types';
 import { MEAL_PLAN, DAILY_TARGETS } from '../constants';
-import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Utensils, Hash, Minus, Edit3 } from 'lucide-react';
+import { CheckCircle2, Plus, ChevronDown, Trash2, Sparkles, Loader2, Save, AlertCircle, Utensils, Hash, Minus, Edit3, Target } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 declare var process: { env: { API_KEY: string } };
@@ -52,6 +52,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
   
+  // Custom Entry State
   const [customName, setCustomName] = useState('');
   const [customKcal, setCustomKcal] = useState('');
   const [customProtein, setCustomProtein] = useState('');
@@ -59,6 +60,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
   const [customFat, setCustomFat] = useState('');
   const [customFiber, setCustomFiber] = useState('');
   const [customQty, setCustomQty] = useState('1.0');
+  const [customTargetCategory, setCustomTargetCategory] = useState<CustomMealEntry['category']>('breakfast');
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -134,6 +136,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     const entry: CustomMealEntry = {
       name: customName,
       qty: qty,
+      category: customTargetCategory,
       macros: { 
         kcal: kcal, 
         protein: parseFloat(customProtein) || 0, 
@@ -144,8 +147,11 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
     };
 
     updateLog({ meals: { ...log.meals, custom: [...currentCustom, entry] } });
-    setCustomName(''); setCustomKcal(''); setCustomProtein(''); setCustomCarbs(''); setCustomFat(''); setCustomFiber(''); setCustomQty('1.0');
-    setShowCustom(false);
+    
+    // Reset form
+    setCustomName(''); setCustomKcal(''); setCustomProtein(''); 
+    setCustomCarbs(''); setCustomFat(''); setCustomFiber(''); 
+    setCustomQty('1.0'); setShowCustom(false);
   };
 
   const removeCustomEntry = (index: number) => {
@@ -192,11 +198,14 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         </div>
       </div>
 
-      {/* Main Meal Selection */}
       <div className="space-y-4">
         {MEAL_PLAN.map((cat) => {
           const entry = log.meals[cat.id as keyof DailyLog['meals']] as MealEntry;
           const selectedOption = entry ? cat.options.find(o => o.id === entry.id) : null;
+          
+          // Get custom items for this category
+          const customItems = (log.meals.custom || []).filter(item => item.category === cat.id);
+          const hasAnyLog = !!selectedOption || customItems.length > 0;
           
           return (
             <div key={cat.id} className="bg-white/5 rounded-[32px] overflow-hidden border border-white/5">
@@ -211,7 +220,13 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                   <div className="text-left min-w-0">
                     <h4 className="text-sm font-black text-white truncate">{cat.label}</h4>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 truncate">
-                      {selectedOption ? `${selectedOption.name} (x${entry.qty})` : 'Awaiting Injection'}
+                      {hasAnyLog ? (
+                        <>
+                          {selectedOption && `${selectedOption.name} (x${entry.qty})`}
+                          {selectedOption && customItems.length > 0 && ' + '}
+                          {customItems.length > 0 && `${customItems.length} Custom Entry`}
+                        </>
+                      ) : 'Awaiting Injection'}
                     </p>
                   </div>
                 </div>
@@ -220,10 +235,43 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
               
               {expandedCat === cat.id && (
                 <div className="px-4 pb-6 space-y-3 animate-in slide-in-from-top-2 duration-300">
+                  
+                  {/* Custom Items in this category */}
+                  {customItems.map((cItem, cIdx) => (
+                    <div key={`custom-${cIdx}`} className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-4 flex flex-col gap-2">
+                       <div className="flex justify-between items-start">
+                         <div>
+                            <div className="text-xs font-black text-indigo-400 flex items-center gap-1">
+                              <Sparkles size={10} /> AI / Manual Entry
+                            </div>
+                            <div className="text-sm font-black text-white mt-1">{cItem.name} <span className="text-[10px] text-slate-500 font-normal ml-1">x{cItem.qty}</span></div>
+                         </div>
+                         <button 
+                            onClick={() => {
+                              const globalIdx = (log.meals.custom || []).indexOf(cItem);
+                              removeCustomEntry(globalIdx);
+                            }}
+                            className="p-2 text-rose-500 bg-rose-500/10 rounded-lg active:scale-90"
+                          >
+                            <Trash2 size={14} />
+                         </button>
+                       </div>
+                       <div className="flex gap-4 items-center">
+                          <div className="flex items-center gap-1">
+                             <span className="text-[8px] font-black text-slate-500">K</span>
+                             <span className="text-[11px] font-black text-slate-300">{Math.round(cItem.macros.kcal * cItem.qty)}</span>
+                          </div>
+                          <MiniMacro l="P" v={cItem.macros.protein * cItem.qty} c="text-blue-400" />
+                          <MiniMacro l="C" v={cItem.macros.carbs * cItem.qty} c="text-emerald-400" />
+                          <MiniMacro l="F" v={cItem.macros.fat * cItem.qty} c="text-amber-400" />
+                       </div>
+                    </div>
+                  ))}
+
                   {selectedOption && (
                     <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-4 flex items-center justify-between mb-2">
                       <div className="flex flex-col flex-1">
-                        <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Multiplier</span>
+                        <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Multiplier (Standard Option)</span>
                         <div className="flex items-center gap-2">
                            <input 
                               type="number"
@@ -242,7 +290,8 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-1 gap-2 pt-2 border-t border-white/5">
+                    <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Protocol Standard Options</div>
                     {cat.options.map((opt) => (
                       <button
                         key={opt.id}
@@ -273,6 +322,16 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                       </button>
                     ))}
                   </div>
+
+                  <button 
+                    onClick={() => {
+                      setCustomTargetCategory(cat.id as any);
+                      setShowCustom(true);
+                    }}
+                    className="w-full p-4 border border-dashed border-indigo-500/20 rounded-2xl flex items-center justify-center gap-2 text-indigo-400 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500/5 transition-colors mt-2"
+                  >
+                    <Plus size={14} /> Add Off-Plan Item to {cat.label.split(' ')[0]}
+                  </button>
                 </div>
               )}
             </div>
@@ -280,42 +339,13 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         })}
       </div>
 
-      {/* Custom Injection Section */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center px-2">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Fuel Injection</h3>
-          <button 
+      <div className="px-2">
+         <button 
             onClick={() => setShowCustom(true)}
-            className="flex items-center gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest bg-blue-500/5 px-3 py-2 rounded-xl border border-blue-500/10 active:scale-95 transition-all"
-          >
-            <Plus size={14} /> AI Scan / Manual
-          </button>
-        </div>
-
-        {log.meals.custom?.map((entry, idx) => (
-          <div key={idx} className="stealth-card rounded-[32px] p-5 flex items-center justify-between group border-white/5">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center">
-                <Sparkles size={18} />
-              </div>
-              <div>
-                <h4 className="text-xs font-black text-white">{entry.name} <span className="text-[10px] text-blue-400 ml-1">x{entry.qty}</span></h4>
-                <div className="flex gap-4 mt-1.5">
-                  <div className="flex items-center gap-1">
-                     <span className="text-[8px] font-black text-slate-500">K</span>
-                     <span className="text-[10px] font-black text-slate-300">{Math.round(entry.macros.kcal * entry.qty)}</span>
-                  </div>
-                  <MiniMacro l="P" v={entry.macros.protein * entry.qty} c="text-blue-400" />
-                  <MiniMacro l="C" v={entry.macros.carbs * entry.qty} c="text-emerald-400" />
-                  <MiniMacro l="F" v={entry.macros.fat * entry.qty} c="text-amber-400" />
-                </div>
-              </div>
-            </div>
-            <button onClick={() => removeCustomEntry(idx)} className="text-slate-600 hover:text-rose-500 transition-colors p-2">
-              <Trash2 size={18} />
-            </button>
-          </div>
-        ))}
+            className="w-full flex items-center justify-center gap-3 py-6 rounded-[32px] bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 font-black uppercase tracking-[0.2em] text-xs shadow-lg active:scale-[0.98] transition-all"
+         >
+            <Sparkles size={18} /> Global AI Fuel Scan
+         </button>
       </div>
 
       {/* Manual Injection Modal */}
@@ -340,6 +370,28 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
             )}
 
             <div className="space-y-5">
+              {/* Category Routing Selection */}
+              <div className="space-y-2">
+                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-2">
+                  <Target size={10} /> Target Metabolic Slot
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {MEAL_PLAN.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => setCustomTargetCategory(m.id as any)}
+                      className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${
+                        customTargetCategory === m.id 
+                        ? 'bg-blue-600 border-blue-400 text-white shadow-lg' 
+                        : 'bg-white/5 border-white/5 text-slate-500'
+                      }`}
+                    >
+                      {m.label.split(' ')[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1">Description (e.g. 200g Greek Yogurt)</label>
                 <div className="relative">

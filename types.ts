@@ -37,6 +37,7 @@ export interface CustomMealEntry {
   name: string;
   macros: Macros;
   qty: number;
+  category: 'breakfast' | 'midSnack' | 'lunch' | 'eveningSnack' | 'dinner';
 }
 
 export interface Exercise {
