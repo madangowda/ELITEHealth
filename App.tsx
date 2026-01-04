@@ -8,7 +8,8 @@ import WorkoutTracker from './components/WorkoutTracker';
 import WeightTracker from './components/WeightTracker';
 import HistoryTracker from './components/HistoryTracker';
 import SupplementTracker from './components/SupplementTracker';
-import { LayoutGrid, Utensils, Dumbbell, Scale, History, Settings, Pill, Box, User, ShieldCheck } from 'lucide-react';
+import AICoach from './components/AICoach';
+import { LayoutGrid, Utensils, Dumbbell, Scale, History, Settings, Pill, Box, User, ShieldCheck, BrainCircuit } from 'lucide-react';
 
 const DEFAULT_PROFILE: UserProfile = {
   height: 188,
@@ -19,21 +20,19 @@ const DEFAULT_PROFILE: UserProfile = {
 };
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'home' | 'diet' | 'workout' | 'weight' | 'history' | 'supps' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'diet' | 'workout' | 'weight' | 'history' | 'supps' | 'settings' | 'coach'>('home');
   const [logs, setLogs] = useState<Record<string, DailyLog>>({});
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-  // Strictly follow Indian Time for today's log key
   const [today, setToday] = useState(getISTDateString());
 
   useEffect(() => {
-    // Update today's date periodically to check for IST rollover
     const timer = setInterval(() => {
       const newToday = getISTDateString();
       if (newToday !== today) {
         setToday(newToday);
       }
-    }, 60000); // Check every minute
+    }, 60000);
 
     try {
       const savedLogs = localStorage.getItem('coach_logs');
@@ -87,6 +86,7 @@ const App: React.FC = () => {
       case 'weight': return <WeightTracker weights={weights} setWeights={setWeights} log={currentLog} updateLog={updateLog} profile={profile} setProfile={setProfile} />;
       case 'history': return <HistoryTracker logs={logs} weights={weights} profile={profile} />;
       case 'supps': return <SupplementTracker log={currentLog} updateLog={updateLog} />;
+      case 'coach': return <AICoach log={currentLog} profile={profile} macros={macros} burn={burn} score={score} logs={logs} />;
       case 'settings': return (
         <div className="p-8 space-y-10 pb-32 bg-[#0f172a] min-h-screen text-white animate-in fade-in duration-500">
           <div className="flex items-center gap-4">
@@ -151,14 +151,6 @@ const App: React.FC = () => {
                  </div>
               </div>
             </div>
-
-            <div className="bg-emerald-500/5 border border-emerald-500/20 p-8 rounded-[40px] flex items-center gap-5">
-              <ShieldCheck className="text-emerald-400 shrink-0" size={32} />
-              <div>
-                <h4 className="text-sm font-black text-emerald-400">Protocol Active</h4>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Metabolic Baseline: 1950 kcal</p>
-              </div>
-            </div>
           </div>
         </div>
       );
@@ -170,15 +162,14 @@ const App: React.FC = () => {
     <div className="max-w-md mx-auto min-h-screen relative bg-[#0f172a] no-scrollbar flex flex-col font-sans overflow-hidden">
       <div className="flex-1 overflow-y-auto no-scrollbar">{renderContent()}</div>
       
-      {/* Floating Navigation Dock */}
       <div className="fixed bottom-6 left-6 right-6 z-50">
         <nav className="glass-nav rounded-[32px] p-2 flex justify-between shadow-2xl max-w-[400px] mx-auto border border-white/5">
           <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<LayoutGrid size={20} />} />
           <NavButton active={activeTab === 'diet'} onClick={() => setActiveTab('diet')} icon={<Utensils size={20} />} />
           <NavButton active={activeTab === 'workout'} onClick={() => setActiveTab('workout')} icon={<Dumbbell size={20} />} />
+          <NavButton active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} icon={<BrainCircuit size={20} />} />
           <NavButton active={activeTab === 'supps'} onClick={() => setActiveTab('supps')} icon={<Pill size={20} />} />
           <NavButton active={activeTab === 'weight'} onClick={() => setActiveTab('weight')} icon={<Scale size={20} />} />
-          <NavButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={<Settings size={20} />} />
           <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History size={20} />} />
         </nav>
       </div>
