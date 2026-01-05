@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DailyLog, Macros, MealEntry, CustomMealEntry } from '../types';
 import { MEAL_PLAN, DAILY_TARGETS } from '../constants';
@@ -91,19 +92,24 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // Updated prompt to be extremely strict about the 5 core macro categories
+      const prompt = `CRITICAL PERFORMANCE PROTOCOL: Provide precise metabolic data for a single standard serving of: "${customName}". 
+      You MUST provide: kcal, protein, carbs, fat, AND fiber (Fiber is mandatory for this protocol).
+      Return raw JSON only. Do not add markdown or text.`;
+
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Provide estimated nutritional data for a standard single serving of: "${customName}". Return JSON only with fields: kcal, protein, carbs, fat, fiber.`,
+        contents: [{ parts: [{ text: prompt }] }],
         config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              kcal: { type: Type.NUMBER },
-              protein: { type: Type.NUMBER },
-              carbs: { type: Type.NUMBER },
-              fat: { type: Type.NUMBER },
-              fiber: { type: Type.NUMBER }
+              kcal: { type: Type.NUMBER, description: "Calories in kcal" },
+              protein: { type: Type.NUMBER, description: "Protein in grams" },
+              carbs: { type: Type.NUMBER, description: "Carbohydrates in grams" },
+              fat: { type: Type.NUMBER, description: "Total fats in grams" },
+              fiber: { type: Type.NUMBER, description: "Dietary fiber in grams. DO NOT omit." }
             },
             required: ["kcal", "protein", "carbs", "fat", "fiber"],
           },
@@ -112,8 +118,11 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
 
       const responseText = response.text;
       if (responseText) {
+        // Robust cleaning in case the model ignored 'application/json' instruction
         const cleanJson = responseText.replace(/```json|```/g, "").trim();
         const data = JSON.parse(cleanJson);
+        
+        // Update all states including Fiber
         setCustomKcal(Math.round(data.kcal || 0).toString());
         setCustomProtein(Math.round(data.protein || 0).toString());
         setCustomCarbs(Math.round(data.carbs || 0).toString());
@@ -121,7 +130,8 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
         setCustomFiber(Math.round(data.fiber || 0).toString());
       }
     } catch (err: any) {
-      setError("AI analysis unavailable. Manual entry is active.");
+      console.error("AI Scan Error:", err);
+      setError("AI analysis failed to extract full macros. Manual entry active.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -203,7 +213,6 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
           const entry = log.meals[cat.id as keyof DailyLog['meals']] as MealEntry;
           const selectedOption = entry ? cat.options.find(o => o.id === entry.id) : null;
           
-          // Get custom items for this category
           const customItems = (log.meals.custom || []).filter(item => item.category === cat.id);
           const hasAnyLog = !!selectedOption || customItems.length > 0;
           
@@ -236,13 +245,12 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
               {expandedCat === cat.id && (
                 <div className="px-4 pb-6 space-y-3 animate-in slide-in-from-top-2 duration-300">
                   
-                  {/* Custom Items in this category */}
                   {customItems.map((cItem, cIdx) => (
                     <div key={`custom-${cIdx}`} className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-4 flex flex-col gap-2">
                        <div className="flex justify-between items-start">
                          <div>
                             <div className="text-xs font-black text-indigo-400 flex items-center gap-1">
-                              <Sparkles size={10} /> AI / Manual Entry
+                              <Sparkles size={10} /> AI Protocol Entry
                             </div>
                             <div className="text-sm font-black text-white mt-1">{cItem.name} <span className="text-[10px] text-slate-500 font-normal ml-1">x{cItem.qty}</span></div>
                          </div>
@@ -264,6 +272,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                           <MiniMacro l="P" v={cItem.macros.protein * cItem.qty} c="text-blue-400" />
                           <MiniMacro l="C" v={cItem.macros.carbs * cItem.qty} c="text-emerald-400" />
                           <MiniMacro l="F" v={cItem.macros.fat * cItem.qty} c="text-amber-400" />
+                          <MiniMacro l="Fi" v={cItem.macros.fiber * cItem.qty} c="text-indigo-400" />
                        </div>
                     </div>
                   ))}
@@ -341,14 +350,16 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
 
       <div className="px-2">
          <button 
-            onClick={() => setShowCustom(true)}
+            onClick={() => {
+              setCustomTargetCategory('breakfast');
+              setShowCustom(true);
+            }}
             className="w-full flex items-center justify-center gap-3 py-6 rounded-[32px] bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 font-black uppercase tracking-[0.2em] text-xs shadow-lg active:scale-[0.98] transition-all"
          >
             <Sparkles size={18} /> Global AI Fuel Scan
          </button>
       </div>
 
-      {/* Manual Injection Modal */}
       {showCustom && (
         <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
           <div className="w-full max-w-md bg-[#0f172a] rounded-[40px] border border-white/10 shadow-2xl p-8 space-y-6 animate-in slide-in-from-bottom-8 duration-500 max-h-[90vh] overflow-y-auto no-scrollbar">
@@ -370,7 +381,6 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
             )}
 
             <div className="space-y-5">
-              {/* Category Routing Selection */}
               <div className="space-y-2">
                 <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest pl-1 flex items-center gap-2">
                   <Target size={10} /> Target Metabolic Slot
@@ -429,7 +439,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 <InputBox label="C (Carbs)" val={customCarbs} setVal={setCustomCarbs} />
                 <InputBox label="F (Fat)" val={customFat} setVal={setCustomFat} />
                 <div className="col-span-2">
-                  <InputBox label="Fi (Fiber)" val={customFiber} setVal={setCustomFiber} />
+                  <InputBox label="Fi (Fiber) - Target 35g+" val={customFiber} setVal={setCustomFiber} colorClass="border-indigo-500/30" />
                 </div>
               </div>
             </div>
@@ -439,7 +449,7 @@ const DietTracker: React.FC<DietTrackerProps> = ({ log, updateLog, macros }) => 
                 onClick={addCustomEntry}
                 className="w-full py-5 bg-blue-600 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-blue-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                <Save size={18} /> Confirm Injection
+                <Save size={18} /> Confirm Protocol Entry
               </button>
             </div>
           </div>
