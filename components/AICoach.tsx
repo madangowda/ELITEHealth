@@ -167,7 +167,7 @@ const AICoach: React.FC<AICoachProps> = ({ log, profile, macros, burn, score, lo
         }
       });
       
-      setDailyAudit(parseJSONSafely(response.text));
+      setDailyAudit(parseJSONSafely(response.text ?? ""));
     } catch (e: any) { 
       console.error(e);
       setError(e.message || "Daily Audit Sync Failed. Ensure your API key is active."); 
@@ -223,7 +223,7 @@ const AICoach: React.FC<AICoachProps> = ({ log, profile, macros, burn, score, lo
           systemInstruction: "You are 'Alpha-1 Analyst'. You analyze Indian fitness data. Focus on consequences and trends."
         }
       });
-      setRetroAudit(parseJSONSafely(response.text));
+      setRetroAudit(parseJSONSafely(response.text ?? ""));
     } catch (e: any) { 
       console.error(e);
       setError(e.message || "Retro Engine Failed. Check connection."); 
