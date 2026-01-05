@@ -160,17 +160,20 @@ const App: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto min-h-screen relative bg-[#0f172a] no-scrollbar flex flex-col font-sans overflow-hidden">
-      <div className="flex-1 overflow-y-auto no-scrollbar">{renderContent()}</div>
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
+        {renderContent()}
+      </div>
       
-      <div className="fixed bottom-6 left-6 right-6 z-50">
-        <nav className="glass-nav rounded-[32px] p-2 flex justify-between shadow-2xl max-w-[400px] mx-auto border border-white/5">
-          <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<LayoutGrid size={20} />} />
-          <NavButton active={activeTab === 'diet'} onClick={() => setActiveTab('diet')} icon={<Utensils size={20} />} />
-          <NavButton active={activeTab === 'workout'} onClick={() => setActiveTab('workout')} icon={<Dumbbell size={20} />} />
-          <NavButton active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} icon={<BrainCircuit size={20} />} />
-          <NavButton active={activeTab === 'supps'} onClick={() => setActiveTab('supps')} icon={<Pill size={20} />} />
-          <NavButton active={activeTab === 'weight'} onClick={() => setActiveTab('weight')} icon={<Scale size={20} />} />
-          <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History size={20} />} />
+      {/* FULL WIDTH SOLID BOTTOM BAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 glass-nav safe-bottom">
+        <nav className="flex justify-between items-center px-2 py-2 max-w-md mx-auto h-[80px]">
+          <NavButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<LayoutGrid size={22} />} />
+          <NavButton active={activeTab === 'diet'} onClick={() => setActiveTab('diet')} icon={<Utensils size={22} />} />
+          <NavButton active={activeTab === 'workout'} onClick={() => setActiveTab('workout')} icon={<Dumbbell size={22} />} />
+          <NavButton active={activeTab === 'coach'} onClick={() => setActiveTab('coach')} icon={<BrainCircuit size={22} />} />
+          <NavButton active={activeTab === 'supps'} onClick={() => setActiveTab('supps')} icon={<Pill size={22} />} />
+          <NavButton active={activeTab === 'weight'} onClick={() => setActiveTab('weight')} icon={<Scale size={22} />} />
+          <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History size={22} />} />
         </nav>
       </div>
     </div>
@@ -178,8 +181,13 @@ const App: React.FC = () => {
 };
 
 const NavButton = ({ active, onClick, icon }: any) => (
-  <button onClick={onClick} className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 scale-110' : 'text-slate-500 hover:text-slate-300'}`}>
-    {icon}
+  <button 
+    onClick={onClick} 
+    className={`flex-1 h-full flex items-center justify-center transition-all duration-300 group`}
+  >
+    <div className={`relative w-11 h-11 flex items-center justify-center rounded-2xl transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 scale-110' : 'text-slate-500 hover:text-slate-300'}`}>
+      {icon}
+    </div>
   </button>
 );
 

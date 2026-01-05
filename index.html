@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,10 +21,9 @@
       overscroll-behavior-y: contain;
     }
     .glass-nav {
-      background: rgba(15, 23, 42, 0.8);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      background: #0f172a; /* Fully opaque to hide bottom text */
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.4);
     }
     .stealth-card {
       background: #1e293b;
@@ -62,26 +62,15 @@
   <div id="root"></div>
   <script type="module" src="index.tsx"></script>
   <script>
-    // Robust Service Worker Registration for Sandbox Environments
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        // Attempt to register using a relative path
         navigator.serviceWorker.register('./sw.js')
           .then(reg => {
             console.log('✅ Elite Offline Engine: Localized and Active');
-            reg.onupdatefound = () => {
-              const installingWorker = reg.installing;
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  window.location.reload();
-                }
-              };
-            };
           })
           .catch(err => {
-            // Log warning for origin mismatch errors commonly seen in AI studio/sandbox environments
             if (err.name === 'SecurityError' || err.message.includes('origin')) {
-              console.warn('⚠️ Service Worker: Sandbox restriction detected. Skipping offline caching to prevent origin mismatch error.');
+              console.warn('⚠️ Service Worker: Sandbox restriction detected.');
             } else {
               console.error('❌ Service Worker: Registration failed', err);
             }
