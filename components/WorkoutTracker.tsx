@@ -2,12 +2,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DailyLog, Exercise, UserProfile, CustomExerciseEntry } from '../types';
 import { WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN } from '../constants';
-import { CheckCircle2, Circle, Clock, Info, ChevronDown, AlertCircle, Loader2, Plus, Zap, Layers, Repeat, Cpu, Sparkles, Trash2, Save, Minus, Box, Edit3 } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Info, ChevronDown, AlertCircle, Loader2, Plus, Zap, Layers, Repeat, Cpu, Sparkles, Trash2, Save, Minus, Box, Edit3, Dumbbell as DumbbellIcon } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 
 declare var process: { env: { API_KEY: string } };
 
-// Fix: Changed 'interface' to 'const' and corrected syntax for VideoPlayer component declaration
 const VideoPlayer: React.FC<{ exercise: Exercise; isExpanded: boolean }> = ({ exercise, isExpanded }) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -73,14 +72,14 @@ const VideoPlayer: React.FC<{ exercise: Exercise; isExpanded: boolean }> = ({ ex
   );
 };
 
-// Fix: Added missing WorkoutTrackerProps interface
 interface WorkoutTrackerProps {
   log: DailyLog;
   updateLog: (updated: Partial<DailyLog>) => void;
   profile: UserProfile;
+  setProfile: (p: UserProfile) => void;
 }
 
-const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog, profile }) => {
+const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog, profile, setProfile }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCustom, setShowCustom] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -181,6 +180,24 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog, profile
         </div>
       </div>
 
+      {/* NEW: Workout Mode Selector - Highly Visible at Top */}
+      <div className="bg-white/5 border border-white/5 p-1 rounded-2xl flex shadow-inner">
+        <button 
+          onClick={() => setProfile({ ...profile, workoutMode: 'standard' })}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 ${profile.workoutMode === 'standard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          <DumbbellIcon size={16} />
+          <span className="text-[10px] font-black uppercase tracking-widest">Elite Standard</span>
+        </button>
+        <button 
+          onClick={() => setProfile({ ...profile, workoutMode: 'homegym' })}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-300 ${profile.workoutMode === 'homegym' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+        >
+          <Box size={16} />
+          <span className="text-[10px] font-black uppercase tracking-widest">Multi Gym</span>
+        </button>
+      </div>
+
       {/* Flexible Fast Walking Hud */}
       <div className="dark-hud rounded-[40px] p-7 shadow-xl shadow-slate-900/20 flex justify-between items-center group relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl transition-all group-hover:bg-blue-500/20" />
@@ -238,9 +255,9 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog, profile
                   <h4 className={`font-black text-base tracking-tight leading-none ${completed ? 'text-emerald-900' : 'text-slate-800'}`}>
                     {ex.name}
                   </h4>
-                  <div className="flex flex-wrap items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2">
-                    <span className="flex items-center gap-1"><Layers size={10}/> {ex.sets} Sets</span>
-                    <span className="flex items-center gap-1"><Repeat size={10}/> {ex.reps}</span>
+                  <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-wider mt-2">
+                    <span className="flex items-center gap-1 text-slate-400"><Layers size={10}/> {ex.sets} Sets</span>
+                    <span className="flex items-center gap-1 text-blue-500 font-black"><Repeat size={11}/> {ex.reps} Reps</span>
                     <span className="flex items-center gap-1 text-orange-500 font-black"><Zap size={10}/> {estBurn} kcal</span>
                     {ex.machine && (
                       <span className="flex items-center gap-1 text-indigo-400 font-black"><Cpu size={10}/> {ex.machine}</span>

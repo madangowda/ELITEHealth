@@ -82,7 +82,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'home': return <Dashboard log={currentLog} macros={macros} burn={burn} score={score} advice={null} weights={weights} updateLog={updateLog} openSettings={() => setActiveTab('settings')} profile={profile} />;
       case 'diet': return <DietTracker log={currentLog} updateLog={updateLog} macros={macros} />;
-      case 'workout': return <WorkoutTracker log={currentLog} updateLog={updateLog} profile={profile} />;
+      case 'workout': return <WorkoutTracker log={currentLog} updateLog={updateLog} profile={profile} setProfile={setProfile} />;
       case 'weight': return <WeightTracker weights={weights} setWeights={setWeights} log={currentLog} updateLog={updateLog} profile={profile} setProfile={setProfile} />;
       case 'history': return <HistoryTracker logs={logs} weights={weights} profile={profile} />;
       case 'supps': return <SupplementTracker log={currentLog} updateLog={updateLog} />;
