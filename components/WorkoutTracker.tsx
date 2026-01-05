@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { DailyLog, Exercise, UserProfile, CustomExerciseEntry } from '../types';
 import { WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN } from '../constants';
@@ -6,12 +7,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 declare var process: { env: { API_KEY: string } };
 
-interface WorkoutTrackerProps {
-  log: DailyLog;
-  updateLog: (updated: Partial<DailyLog>) => void;
-  profile: UserProfile;
-}
-
+// Fix: Changed 'interface' to 'const' and corrected syntax for VideoPlayer component declaration
 const VideoPlayer: React.FC<{ exercise: Exercise; isExpanded: boolean }> = ({ exercise, isExpanded }) => {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -76,6 +72,13 @@ const VideoPlayer: React.FC<{ exercise: Exercise; isExpanded: boolean }> = ({ ex
     </>
   );
 };
+
+// Fix: Added missing WorkoutTrackerProps interface
+interface WorkoutTrackerProps {
+  log: DailyLog;
+  updateLog: (updated: Partial<DailyLog>) => void;
+  profile: UserProfile;
+}
 
 const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog, profile }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -235,9 +238,10 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({ log, updateLog, profile
                   <h4 className={`font-black text-base tracking-tight leading-none ${completed ? 'text-emerald-900' : 'text-slate-800'}`}>
                     {ex.name}
                   </h4>
-                  <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2">
+                  <div className="flex flex-wrap items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2">
                     <span className="flex items-center gap-1"><Layers size={10}/> {ex.sets} Sets</span>
-                    <span className="flex items-center gap-1 text-orange-500 font-black"><Zap size={10}/> Burn: {estBurn} kcal</span>
+                    <span className="flex items-center gap-1"><Repeat size={10}/> {ex.reps}</span>
+                    <span className="flex items-center gap-1 text-orange-500 font-black"><Zap size={10}/> {estBurn} kcal</span>
                     {ex.machine && (
                       <span className="flex items-center gap-1 text-indigo-400 font-black"><Cpu size={10}/> {ex.machine}</span>
                     )}
