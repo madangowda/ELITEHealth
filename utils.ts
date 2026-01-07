@@ -1,3 +1,4 @@
+
 import { DailyLog, WeightEntry, Macros, AppNotification, UserProfile, MealEntry, Supplement, CustomMealEntry } from './types';
 import { MEAL_PLAN, WORKOUT_PLAN, HOME_GYM_WORKOUT_PLAN, SUPPLEMENTS } from './constants';
 
@@ -103,15 +104,25 @@ export const calculateExerciseBurn = (log: DailyLog, profile: UserProfile): numb
   const d = new Date(log.date);
   const dayIndex = d.getDay();
   const adjustedIndex = (dayIndex + 6) % 7;
-  const plan = profile.workoutMode === 'homegym' ? HOME_GYM_WORKOUT_PLAN : WORKOUT_PLAN;
-  const workout = plan[adjustedIndex];
+  
+  // Hybrid logic: Look in BOTH plans to ensure any completed exercise is counted
+  const standardWorkout = WORKOUT_PLAN[adjustedIndex];
+  const hgWorkout = HOME_GYM_WORKOUT_PLAN[adjustedIndex];
+  const allPossibleExercises = [...standardWorkout.exercises, ...hgWorkout.exercises];
   
   let burn = 0;
-  workout.exercises.forEach(ex => {
-    if (log.completedExercises.includes(ex.id)) {
+  
+  // Create a unique set of exercise IDs to avoid double counting if someone uses the same ID
+  const uniqueExerciseMap = new Map();
+  allPossibleExercises.forEach(ex => uniqueExerciseMap.set(ex.id, ex));
+
+  log.completedExercises.forEach(id => {
+    const ex = uniqueExerciseMap.get(id);
+    if (ex) {
       if (ex.unit === 'set') {
         burn += ex.kcalPerUnit * ex.sets;
       } else if (ex.unit === 'second') {
+        // Assume 40 seconds per set if unit is second and it was marked complete
         burn += ex.kcalPerUnit * 40 * ex.sets;
       }
     }
@@ -160,7 +171,6 @@ export const calculateDailyScore = (log: DailyLog, macros: Macros, tdee: number,
   if (log.weight) score += 1;
   
   // 2. Meal Slot Discipline (4.0 Points - 0.8 per slot)
-  // Logic: Verify if each slot (Standard + Custom) was fulfilled within the metabolic window
   const SLOT_TARGETS: Record<string, { min: number, max: number }> = {
     breakfast: { min: 300, max: 600 },
     midSnack: { min: 50, max: 300 },
@@ -206,12 +216,10 @@ export const calculateDailyScore = (log: DailyLog, macros: Macros, tdee: number,
     if (isFullAdherence) {
       score += 1;
     } else {
-      // Penalty for missing critical Sunday D3
       const isSunday = d.getDay() === 0;
       if (isSunday && !taken.includes('d3')) {
         score -= 1;
       }
-      // Minor penalty for missing recovery night stack
       const nightSupps = scheduled.filter(s => s.timing === 'night');
       const allNightTaken = nightSupps.every(s => taken.includes(s.id));
       if (nightSupps.length > 0 && !allNightTaken) {

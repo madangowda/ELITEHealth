@@ -90,9 +90,13 @@ const AICoach: React.FC<AICoachProps> = ({ log, profile, macros, burn, score, lo
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const dayIndex = (new Date(log.date).getDay() + 6) % 7;
-      const plan = profile.workoutMode === 'homegym' ? HOME_GYM_WORKOUT_PLAN : WORKOUT_PLAN;
-      const workoutToday = plan[dayIndex];
-      const completedList = workoutToday.exercises
+      
+      // Gather completed items from BOTH plans for AI context
+      const standardExercises = WORKOUT_PLAN[dayIndex].exercises;
+      const hgExercises = HOME_GYM_WORKOUT_PLAN[dayIndex].exercises;
+      const allPossible = [...standardExercises, ...hgExercises];
+      
+      const completedList = allPossible
         .filter(ex => log.completedExercises.includes(ex.id))
         .map(ex => ex.name)
         .join(', ');
@@ -100,15 +104,15 @@ const AICoach: React.FC<AICoachProps> = ({ log, profile, macros, burn, score, lo
       const prompt = `PERFORMANCE AUDIT [${currentTimeStr} IST].
       TARGETS: 1900kcal, Protein: 142g, Fiber: 35g, Carbs: 195g, Fat: 60g.
       CURRENT INTAKE: ${Math.round(macros.kcal)}kcal (P:${Math.round(macros.protein)}g, Fiber:${Math.round(macros.fiber)}g).
-      CURRENT BURN: ${burn} kcal (Active minutes: ${log.walkingMinutes}).
-      WORKOUT PLAN: ${workoutToday.type}.
-      COMPLETED EXERCISES: ${completedList || 'None'}.
+      CURRENT BURN: ${burn} kcal (Active walking minutes: ${log.walkingMinutes}).
+      WORKOUT CONTEXT: Day ${dayIndex + 1} Protocol.
+      COMPLETED DRILLS: ${completedList || 'None logged'}.
       
       MISSION:
-      1. ANALYZE GAPS: Identify macro deficits AND exercise deficits.
-      2. KINETIC DIRECTIVES: If calorie burn is low (<500) or workout is incomplete, provide specific exercise suggestions (Kinetic Injections).
+      1. ANALYZE GAPS: Identify macro deficits AND movement deficits.
+      2. KINETIC DIRECTIVES: If burn is <500 kcal or movement is low, suggest 3-4 specific kinetic injections (exercises).
       3. MEAL INJECTION: Suggest EXACTLY 4 Indian food options for remaining slots.
-      4. NUMERICAL PRECISION: Each option MUST have full macro numbers.
+      4. NUMERICAL PRECISION: Each food option MUST have full macro numbers.
       5. STATUS: Use 'LOW_BURN', 'OPTIMAL', or 'INCOMPLETE_WORKOUT' for kinetics.`;
       
       const response = await ai.models.generateContent({
@@ -180,7 +184,7 @@ const AICoach: React.FC<AICoachProps> = ({ log, profile, macros, burn, score, lo
             },
             required: ["briefing", "nutritionalGaps", "mealBlueprints", "kineticDirectives"]
           },
-          systemInstruction: "You are 'Alpha-1 Coach'. You manage both Diet and Exercise. If the user hasn't burned enough calories or finished their workout, you MUST prioritize Kinetic Injections (exercises) in your report."
+          systemInstruction: "You are 'Alpha-1 Coach'. Manage Diet and Exercise. If movement is low, prioritize Kinetic Injections. Use Indian food database."
         }
       });
       
